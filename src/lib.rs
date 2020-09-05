@@ -19,21 +19,25 @@ impl App {
         Self::default()
     }
 
+    /// Set the command name.
     pub fn name(mut self, name: &str) -> App {
         self.name = name.to_string();
         self
     }
 
+    /// Set the author name.
     pub fn author(mut self, author: &str) -> App {
         self.author = author.to_string();
         self
     }
 
+    /// Set the short description.
     pub fn description(mut self, desc: &str) -> App {
         self.description = desc.to_string();
         self
     }
 
+    /// Set the version.
     pub fn version(mut self, vers: &str) -> App {
         self.version = vers.to_string();
         self
