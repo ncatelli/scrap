@@ -1,6 +1,8 @@
 use std::default;
 use std::fmt;
 
+mod parsers;
+
 #[cfg(test)]
 mod tests;
 
