@@ -1,9 +1,10 @@
+use std::default;
 use std::fmt;
 
 #[cfg(test)]
 mod tests;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct App {
     name: String,
     author: String,
@@ -13,12 +14,7 @@ pub struct App {
 
 impl App {
     pub fn new() -> Self {
-        App {
-            name: String::new(),
-            author: String::new(),
-            description: String::new(),
-            version: "0.1.0".to_string(),
-        }
+        Self::default()
     }
 
     pub fn name(mut self, name: &str) -> App {
@@ -49,5 +45,16 @@ impl fmt::Display for App {
             "{}\nUsage: {} [OPTIONS] [SUBCOMMAND]",
             self.description, self.name
         )
+    }
+}
+
+impl default::Default for App {
+    fn default() -> Self {
+        App {
+            name: String::new(),
+            author: String::new(),
+            description: String::new(),
+            version: String::new(),
+        }
     }
 }
