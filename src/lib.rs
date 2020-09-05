@@ -1,3 +1,5 @@
+use parcel::prelude::v1::*;
+use parcel::ParseResult;
 use std::default;
 use std::fmt;
 
@@ -72,5 +74,11 @@ impl default::Default for App {
             description: String::new(),
             version: String::new(),
         }
+    }
+}
+
+impl<'a> Parser<'a, &'a [&'a str], &'a str> for App {
+    fn parse(&self, input: &'a [&'a str]) -> ParseResult<'a, &'a [&'a str], &'a str> {
+        crate::parsers::match_str("test").parse(input)
     }
 }

@@ -1,3 +1,5 @@
+use parcel::prelude::v1::Parser;
+use parcel::ParseResult;
 use std::default;
 use std::fmt;
 
@@ -77,5 +79,11 @@ impl default::Default for Flag {
             help_string: String::new(),
             action: Action::ExpectSingleValue,
         }
+    }
+}
+
+impl<'a> Parser<'a, &'a [&'a str], &'a str> for Flag {
+    fn parse(&self, input: &'a [&'a str]) -> ParseResult<'a, &'a [&'a str], &'a str> {
+        crate::parsers::match_str("test").parse(input)
     }
 }
