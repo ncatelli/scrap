@@ -4,28 +4,11 @@ use std::fmt;
 mod tests;
 
 #[derive(Debug)]
-pub struct SemanticVersion {
-    major: u16,
-    minor: u16,
-    patch: u16,
-}
-
-impl SemanticVersion {
-    fn new(major: u16, minor: u16, patch: u16) -> SemanticVersion {
-        SemanticVersion {
-            major,
-            minor,
-            patch,
-        }
-    }
-}
-
-#[derive(Debug)]
 pub struct App {
     name: String,
     author: String,
     description: String,
-    version: SemanticVersion,
+    version: String,
 }
 
 impl App {
@@ -34,27 +17,27 @@ impl App {
             name: String::new(),
             author: String::new(),
             description: String::new(),
-            version: SemanticVersion::new(0, 0, 0),
+            version: "0.1.0".to_string(),
         }
     }
 
-    pub fn name(mut self, name: String) -> App {
-        self.name = name;
+    pub fn name(mut self, name: &str) -> App {
+        self.name = name.to_string();
         self
     }
 
-    pub fn author(mut self, author: String) -> App {
-        self.author = author;
+    pub fn author(mut self, author: &str) -> App {
+        self.author = author.to_string();
         self
     }
 
-    pub fn description(mut self, desc: String) -> App {
-        self.description = desc;
+    pub fn description(mut self, desc: &str) -> App {
+        self.description = desc.to_string();
         self
     }
 
-    pub fn version(mut self, vers: SemanticVersion) -> App {
-        self.version = vers;
+    pub fn version(mut self, vers: &str) -> App {
+        self.version = vers.to_string();
         self
     }
 }
@@ -63,7 +46,7 @@ impl fmt::Display for App {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{}\nUSAGE:\n\t{} [OPTIONS] [SUBCOMMAND]",
+            "{}\nUsage: {} [OPTIONS] [SUBCOMMAND]",
             self.description, self.name
         )
     }
