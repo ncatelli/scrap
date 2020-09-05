@@ -4,6 +4,8 @@ use std::fmt;
 #[cfg(test)]
 mod tests;
 
+/// App functions as the top level wrapper for a command command line tool
+/// storing information about the tool, author, version and a brief description.
 #[derive(Debug, Clone, PartialEq)]
 pub struct App {
     name: String,
@@ -40,11 +42,18 @@ impl App {
 
 impl fmt::Display for App {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}\nUsage: {} [OPTIONS] [SUBCOMMAND]",
-            self.description, self.name
-        )
+        let desc = if !self.description.is_empty() {
+            format!("{}\n", &self.description)
+        } else {
+            "".to_string()
+        };
+        let name = if !self.name.is_empty() {
+            format!(" {} ", &self.name)
+        } else {
+            "".to_string()
+        };
+
+        write!(f, "{}Usage:{}[OPTIONS] [SUBCOMMAND]", desc, name)
     }
 }
 
