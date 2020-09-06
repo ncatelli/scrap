@@ -83,8 +83,8 @@ impl default::Default for Flag {
     }
 }
 
-impl<'a> Parser<'a, &'a [&'a str], &'a str> for Flag {
-    fn parse(&self, input: &'a [&'a str]) -> ParseResult<'a, &'a [&'a str], &'a str> {
+impl<'a> Parser<'a, &'a str, String> for Flag {
+    fn parse(&self, input: &'a str) -> ParseResult<'a, &'a str, String> {
         match_string(format!("{}{}", "--", "test")).parse(input)
     }
 }

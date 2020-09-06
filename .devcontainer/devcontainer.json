@@ -19,7 +19,7 @@
 	},
 	// Add the IDs of extensions you want installed when the container is created.
 	"extensions": [
-		"matklad.rust-analyzer",
+		"rust-lang.rust",
 		"bungcip.better-toml",
 		"vadimcn.vscode-lldb",
 		// (Optional) Displays the current CPU stats, memory/disk consumption, clock freq. etc. of the container host in the VS Code status bar.
