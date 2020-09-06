@@ -1,4 +1,6 @@
 use crate::flag::{Action, Flag};
+use parcel::prelude::v1::*;
+use parcel::MatchStatus;
 
 #[test]
 fn should_set_flag_defaults_on_new() {
@@ -42,5 +44,21 @@ fn should_generate_correct_help_message_based_off_passed_arguments() {
                 .short_code("v")
                 .action(Action::StoreTrue)
         )
+    );
+}
+
+#[ignore]
+#[test]
+fn should_match_parse_flags_that_match_store_true_actions() {
+    let input = "--version";
+
+    assert_eq!(
+        Ok(MatchStatus::Match(("", "version".to_string()))),
+        Flag::new()
+            .name("version")
+            .short_code("v")
+            .help_string("print command version")
+            .action(Action::StoreTrue)
+            .parse(&input)
     );
 }
