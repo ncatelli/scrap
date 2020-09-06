@@ -1,3 +1,4 @@
+use crate::parsers::match_string;
 use parcel::prelude::v1::*;
 use parcel::ParseResult;
 use std::default;
@@ -79,6 +80,6 @@ impl default::Default for App {
 
 impl<'a> Parser<'a, &'a [&'a str], &'a str> for App {
     fn parse(&self, input: &'a [&'a str]) -> ParseResult<'a, &'a [&'a str], &'a str> {
-        crate::parsers::match_str("test").parse(input)
+        match_string(format!("{}{}", "--", "test".to_string())).parse(input)
     }
 }
