@@ -1,4 +1,4 @@
-use crate::flag::{Action, Flag};
+use crate::flag::{Action, Flag, Value};
 use parcel::prelude::v1::*;
 use parcel::MatchStatus;
 
@@ -51,27 +51,52 @@ fn should_generate_correct_help_message_based_off_passed_arguments() {
 fn should_match_parse_flags_that_match_store_true_actions() {
     let input = "--version";
     let short_input = "-v";
+    let flag = Flag::new()
+        .name("version")
+        .short_code("v")
+        .help_string("print command version")
+        .action(Action::StoreTrue);
 
     assert_eq!(
         Ok(MatchStatus::Match((
             &input[input.len()..],
-            "version".to_string()
+            ("version".to_string(), Value::Bool(true))
         ))),
-        Flag::new()
-            .name("version")
-            .short_code("v")
-            .help_string("print command version")
-            .action(Action::StoreTrue)
-            .parse(&input)
+        flag.clone().parse(&input)
     );
 
     assert_eq!(
-        Ok(MatchStatus::Match((&input[input.len()..], "v".to_string()))),
-        Flag::new()
-            .name("version")
-            .short_code("v")
-            .help_string("print command version")
-            .action(Action::StoreTrue)
-            .parse(&short_input)
+        Ok(MatchStatus::Match((
+            &input[input.len()..],
+            ("v".to_string(), Value::Bool(true))
+        ))),
+        flag.clone().parse(&short_input)
+    );
+}
+
+#[test]
+fn should_match_parse_flags_that_match_store_false_actions() {
+    let input = "--noask";
+    let short_input = "-n";
+    let flag = Flag::new()
+        .name("noask")
+        .short_code("n")
+        .help_string("don't prompt user for input")
+        .action(Action::StoreFalse);
+
+    assert_eq!(
+        Ok(MatchStatus::Match((
+            &input[input.len()..],
+            ("noask".to_string(), Value::Bool(false))
+        ))),
+        flag.clone().parse(&input)
+    );
+
+    assert_eq!(
+        Ok(MatchStatus::Match((
+            &input[input.len()..],
+            ("n".to_string(), Value::Bool(false))
+        ))),
+        flag.clone().parse(&short_input)
     );
 }
