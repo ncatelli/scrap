@@ -2,13 +2,6 @@ use crate::flag::{FlagOrValue, Value};
 use parcel::{join, one_or_more, optional, right, take_n}; // parser combinators
 use parcel::{MatchStatus, ParseResult, Parser};
 
-pub fn whitespace<'a>() -> impl Parser<'a, &'a str, char> {
-    move |input: &'a str| match input.chars().next() {
-        Some(next) if next.is_whitespace() => Ok(MatchStatus::Match((&input[1..], next))),
-        _ => Ok(MatchStatus::NoMatch(input)),
-    }
-}
-
 pub fn any<'a>() -> impl Parser<'a, &'a str, char> {
     move |input: &'a str| match input.chars().next() {
         Some(next) => Ok(MatchStatus::Match((&input[1..], next))),
@@ -46,10 +39,6 @@ pub fn numeric<'a>() -> impl Parser<'a, &'a str, char> {
     }
 }
 
-pub fn match_flag<'a>(expected: String) -> impl parcel::Parser<'a, &'a str, String> {
-    any_flag().predicate(move |f| *f == expected)
-}
-
 pub fn any_flag<'a>() -> impl parcel::Parser<'a, &'a str, String> {
     right(join(
         take_n(character('-'), 2),
@@ -61,11 +50,13 @@ pub fn any_flag<'a>() -> impl parcel::Parser<'a, &'a str, String> {
 
 /// ArgumentParser handles the parsing of individual std::env::Args arguments
 /// into an intermediate FlagOrValue representation.
+#[derive(Default)]
 pub struct ArgumentParser {}
 
 impl ArgumentParser {
+    #[allow(dead_code)]
     pub fn new() -> Self {
-        ArgumentParser {}
+        ArgumentParser::default()
     }
 }
 
