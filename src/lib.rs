@@ -1,3 +1,6 @@
+use crate::parsers::ArgumentParser;
+use parcel::MatchStatus;
+use parcel::Parser;
 use std::default;
 use std::fmt;
 
@@ -72,5 +75,19 @@ impl default::Default for App {
             description: String::new(),
             version: String::new(),
         }
+    }
+}
+
+impl App {
+    pub fn parse(&self, input: Vec<String>) -> Result<(), String> {
+        let ap = ArgumentParser::new();
+        let res = match ap.parse(input)? {
+            MatchStatus::Match((_, res)) => Ok(res),
+            MatchStatus::NoMatch(remainder) => {
+                Err(format!("unable to parse full arg string: {:?}", remainder))
+            }
+        }?;
+
+        Err("Unimplemented".to_string())
     }
 }
