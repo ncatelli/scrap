@@ -63,3 +63,26 @@ fn should_parse_integer_value_into_flag_or_value() {
         ArgumentParser::new().parse(input)
     );
 }
+
+#[test]
+fn should_parse_flag_or_value_from_string_vector_input() {
+    let input = vec![
+        "--size".to_string(),
+        "1024".to_string(),
+        "--no-ask".to_string(),
+        "test".to_string(),
+    ];
+
+    assert_eq!(
+        Ok(MatchStatus::Match((
+            vec![],
+            vec![
+                FlagOrValue::Flag("size".to_string()),
+                FlagOrValue::Value(Value::Integer(1024)),
+                FlagOrValue::Flag("no-ask".to_string()),
+                FlagOrValue::Value(Value::Str("test".to_string())),
+            ]
+        ))),
+        ArgumentParser::new().parse(input)
+    );
+}
