@@ -78,8 +78,14 @@ impl default::Default for App {
     }
 }
 
-impl<'a> Parser<'a, &'a str, String> for App {
-    fn parse(&self, input: &'a str) -> ParseResult<'a, &'a str, String> {
-        match_string(format!("{}{}", "--", "test".to_string())).parse(input)
+impl<'a> Parser<'a, &'a [&'a str], String> for App {
+    fn parse(&self, input: &'a [&'a str]) -> ParseResult<'a, &'a [&'a str], String> {
+        let next = &input[1..];
+        match_string(format!("{}{}", "--", "test".to_string()))
+            .parse(&input[0])
+            .map(|ms| match ms {
+                parcel::MatchStatus::Match((_, v)) => parcel::MatchStatus::Match((next, v)),
+                parcel::MatchStatus::NoMatch(n) => parcel::MatchStatus::NoMatch(&input[0..]),
+            })
     }
 }

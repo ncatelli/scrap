@@ -99,22 +99,29 @@ impl default::Default for Flag {
     }
 }
 
+impl<'a> Parser<'a, &'a [&'a str], (String, Value)> for Flag {
+    fn parse(&self, input: &'a [&'a str]) -> ParseResult<'a, &'a [&'a str], (String, Value)> {
+        Err("Unimplemented".to_string())
+    }
+}
+
 impl<'a> Parser<'a, &'a str, (String, Value)> for Flag {
     fn parse(&self, input: &'a str) -> ParseResult<'a, &'a str, (String, Value)> {
         let name = self.name.clone();
         let shortcode = self.short_code.clone();
         match self.action {
-            Action::StoreTrue => Ok(match_flag(name)
+            Action::StoreTrue => match_flag(name)
                 .or(move || match_flag(shortcode.clone()))
-                .map(|res| (res, Value::Bool(true)))),
-            Action::StoreFalse => Ok(match_flag(name)
+                .map(|res| (res, Value::Bool(true))),
+            Action::StoreFalse => match_flag(name)
                 .or(move || match_flag(shortcode.clone()))
-                .map(|res| (res, Value::Bool(false)))),
-            Action::ExpectSingleValue => Err(format!(
-                "unimplemented action: {:?}",
-                Action::ExpectSingleValue
-            )),
-        }?
+                .map(|res| (res, Value::Bool(false))),
+            Action::ExpectSingleValue => join(
+                match_flag(name).or(move || match_flag(shortcode.clone())),
+                right(join(whitespace(), one_or_more(alphabetic()))),
+            )
+            .map(|(res, v)| (res, Value::Str(v.iter().collect::<String>()))),
+        }
         .parse(input)
     }
 }

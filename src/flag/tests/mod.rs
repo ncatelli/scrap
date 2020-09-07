@@ -62,7 +62,7 @@ fn should_match_parse_flags_that_match_store_true_actions() {
             &input[input.len()..],
             ("version".to_string(), Value::Bool(true))
         ))),
-        flag.clone().parse(&input)
+        flag.clone().parse(input)
     );
 
     assert_eq!(
@@ -70,7 +70,7 @@ fn should_match_parse_flags_that_match_store_true_actions() {
             &input[input.len()..],
             ("v".to_string(), Value::Bool(true))
         ))),
-        flag.clone().parse(&short_input)
+        flag.clone().parse(short_input)
     );
 }
 
@@ -89,7 +89,7 @@ fn should_match_parse_flags_that_match_store_false_actions() {
             &input[input.len()..],
             ("no-ask".to_string(), Value::Bool(false))
         ))),
-        flag.clone().parse(&input)
+        flag.clone().parse(input)
     );
 
     assert_eq!(
@@ -97,6 +97,6 @@ fn should_match_parse_flags_that_match_store_false_actions() {
             &input[input.len()..],
             ("n".to_string(), Value::Bool(false))
         ))),
-        flag.clone().parse(&short_input)
+        flag.clone().parse(short_input)
     );
 }
