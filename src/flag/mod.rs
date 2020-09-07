@@ -34,7 +34,7 @@ pub enum Action {
 /// fields for the name, short_code, help_string and whether the flag expects
 /// a value
 pub struct Flag {
-    name: String,
+    pub name: String,
     short_code: String,
     help_string: String,
     action: Action,

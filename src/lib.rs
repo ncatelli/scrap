@@ -1,6 +1,8 @@
+use crate::flag::Flag;
 use crate::parsers::ArgumentParser;
 use parcel::MatchStatus;
 use parcel::Parser;
+use std::collections::HashMap;
 use std::default;
 use std::fmt;
 
@@ -10,6 +12,8 @@ mod parsers;
 #[cfg(test)]
 mod tests;
 
+type FlagMap = HashMap<String, Flag>;
+
 /// App functions as the top level wrapper for a command command line tool
 /// storing information about the tool, author, version and a brief description.
 #[derive(Debug, Clone, PartialEq)]
@@ -18,6 +22,7 @@ pub struct App {
     author: String,
     description: String,
     version: String,
+    flags: FlagMap,
 }
 
 impl App {
@@ -48,6 +53,12 @@ impl App {
         self.version = vers.to_string();
         self
     }
+
+    /// Set a flag.
+    pub fn flag(mut self, f: Flag) -> App {
+        self.flags.insert(f.name.clone(), f);
+        self
+    }
 }
 
 impl fmt::Display for App {
@@ -74,6 +85,7 @@ impl default::Default for App {
             author: String::new(),
             description: String::new(),
             version: String::new(),
+            flags: FlagMap::new(),
         }
     }
 }
