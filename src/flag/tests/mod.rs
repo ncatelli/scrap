@@ -76,10 +76,10 @@ fn should_match_parse_flags_that_match_store_true_actions() {
 
 #[test]
 fn should_match_parse_flags_that_match_store_false_actions() {
-    let input = "--noask";
+    let input = "--no-ask";
     let short_input = "-n";
     let flag = Flag::new()
-        .name("noask")
+        .name("no-ask")
         .short_code("n")
         .help_string("don't prompt user for input")
         .action(Action::StoreFalse);
@@ -87,7 +87,7 @@ fn should_match_parse_flags_that_match_store_false_actions() {
     assert_eq!(
         Ok(MatchStatus::Match((
             &input[input.len()..],
-            ("noask".to_string(), Value::Bool(false))
+            ("no-ask".to_string(), Value::Bool(false))
         ))),
         flag.clone().parse(&input)
     );

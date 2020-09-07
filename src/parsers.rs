@@ -14,6 +14,15 @@ pub fn alphabetic<'a>() -> impl Parser<'a, &'a str, char> {
     }
 }
 
+pub fn alphabetic_or_dash<'a>() -> impl Parser<'a, &'a str, char> {
+    move |input: &'a str| match input.chars().next() {
+        Some(next) if next.is_alphabetic() || next == '-' || next == '_' => {
+            Ok(MatchStatus::Match((&input[1..], next)))
+        }
+        _ => Ok(MatchStatus::NoMatch(input)),
+    }
+}
+
 pub fn character<'a>(expected: char) -> impl Parser<'a, &'a str, char> {
     move |input: &'a str| match input.chars().next() {
         Some(next) if next == expected => Ok(MatchStatus::Match((&input[1..], next))),

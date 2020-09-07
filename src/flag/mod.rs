@@ -124,7 +124,10 @@ pub fn match_flag<'a>(expected: String) -> impl parcel::Parser<'a, &'a str, Stri
 }
 
 pub fn any_flag<'a>() -> impl parcel::Parser<'a, &'a str, String> {
-    right(join(take_n(character('-'), 2), one_or_more(alphabetic())))
-        .map(|cv| cv.iter().collect::<String>())
-        .or(|| right(join(take_n(character('-'), 1), alphabetic())).map(|c| c.to_string()))
+    right(join(
+        take_n(character('-'), 2),
+        one_or_more(alphabetic_or_dash()),
+    ))
+    .map(|cv| cv.iter().collect::<String>())
+    .or(|| right(join(take_n(character('-'), 1), alphabetic())).map(|c| c.to_string()))
 }
