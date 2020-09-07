@@ -7,6 +7,13 @@ use std::fmt;
 
 mod tests;
 
+/// FlagOrvalue represents a state of being either a flag or a value to be returned my the parser.
+#[derive(Debug, PartialEq, Clone)]
+pub enum FlagOrValue {
+    Flag(String),
+    Value(Value),
+}
+
 /// Value represents one of the values that can be encoded into an argument.
 /// Currently, this can be represented as either a string, boolean or number.
 #[derive(Debug, PartialEq, Clone)]
@@ -100,8 +107,26 @@ impl default::Default for Flag {
 }
 
 impl<'a> Parser<'a, &'a [&'a str], (String, Value)> for Flag {
-    fn parse(&self, input: &'a [&'a str]) -> ParseResult<'a, &'a [&'a str], (String, Value)> {
+    fn parse(&self, _input: &'a [&'a str]) -> ParseResult<'a, &'a [&'a str], (String, Value)> {
         Err("Unimplemented".to_string())
+        /*
+        let name = self.name.clone();
+        let shortcode = self.short_code.clone();
+        match self.action {
+            Action::StoreTrue => match_flag(name)
+                .or(move || match_flag(shortcode.clone()))
+                .map(|res| (res, Value::Bool(true))),
+            Action::StoreFalse => match_flag(name)
+                .or(move || match_flag(shortcode.clone()))
+                .map(|res| (res, Value::Bool(false))),
+            Action::ExpectSingleValue => join(
+                match_flag(name).or(move || match_flag(shortcode.clone())),
+                right(join(whitespace(), one_or_more(alphabetic()))),
+            )
+            .map(|(res, v)| (res, Value::Str(v.iter().collect::<String>()))),
+        }
+        .parse(input)
+        */
     }
 }
 
