@@ -1,17 +1,17 @@
-use crate::flag::FlagOrValue;
-use parcel::{join, one_or_more, right, take_n}; // parser combinators
+use crate::flag::{FlagOrValue, Value};
+use parcel::{join, one_or_more, optional, right, take_n}; // parser combinators
 use parcel::{MatchStatus, ParseResult, Parser};
-
-pub fn match_string<'a>(expected: String) -> impl Parser<'a, &'a str, String> {
-    move |input: &'a str| match input.get(0..expected.len()) {
-        Some(next) if next == expected => Ok(MatchStatus::Match((&input[1..], next.to_string()))),
-        _ => Ok(MatchStatus::NoMatch(input)),
-    }
-}
 
 pub fn whitespace<'a>() -> impl Parser<'a, &'a str, char> {
     move |input: &'a str| match input.chars().next() {
         Some(next) if next.is_whitespace() => Ok(MatchStatus::Match((&input[1..], next))),
+        _ => Ok(MatchStatus::NoMatch(input)),
+    }
+}
+
+pub fn any<'a>() -> impl Parser<'a, &'a str, char> {
+    move |input: &'a str| match input.chars().next() {
+        Some(next) => Ok(MatchStatus::Match((&input[1..], next))),
         _ => Ok(MatchStatus::NoMatch(input)),
     }
 }
@@ -71,6 +71,32 @@ impl ArgumentParser {
 
 impl<'a> Parser<'a, &'a str, FlagOrValue> for ArgumentParser {
     fn parse(&self, input: &'a str) -> ParseResult<'a, &'a str, FlagOrValue> {
-        any_flag().map(|f| FlagOrValue::Flag(f)).parse(input)
+        any_flag()
+            .map(|f| FlagOrValue::Flag(f))
+            .or(|| {
+                join(
+                    one_or_more(numeric()),
+                    optional(right(join(character('.'), one_or_more(numeric())))),
+                )
+                .map(|(whole, decimal)| match decimal {
+                    Some(num) => FlagOrValue::Value(Value::Float(
+                        format!(
+                            "{}.{}",
+                            whole.iter().collect::<String>(),
+                            num.iter().collect::<String>()
+                        )
+                        .parse()
+                        .unwrap(),
+                    )),
+                    None => FlagOrValue::Value(Value::Integer(
+                        whole.iter().collect::<String>().parse().unwrap(),
+                    )),
+                })
+            })
+            .or(|| {
+                one_or_more(any())
+                    .map(|cv| FlagOrValue::Value(Value::Str(cv.iter().collect::<String>())))
+            })
+            .parse(input)
     }
 }
