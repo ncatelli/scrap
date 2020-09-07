@@ -50,6 +50,7 @@ fn should_generate_correct_help_message_based_off_passed_arguments() {
 #[test]
 fn should_match_parse_flags_that_match_store_true_actions() {
     let input = "--version";
+    let short_input = "-v";
 
     assert_eq!(
         Ok(MatchStatus::Match((
@@ -62,5 +63,15 @@ fn should_match_parse_flags_that_match_store_true_actions() {
             .help_string("print command version")
             .action(Action::StoreTrue)
             .parse(&input)
+    );
+
+    assert_eq!(
+        Ok(MatchStatus::Match((&input[input.len()..], "v".to_string()))),
+        Flag::new()
+            .name("version")
+            .short_code("v")
+            .help_string("print command version")
+            .action(Action::StoreTrue)
+            .parse(&short_input)
     );
 }
