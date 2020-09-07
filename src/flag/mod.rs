@@ -94,12 +94,10 @@ impl<'a> Parser<'a, &'a str, String> for Flag {
     }
 }
 
-#[allow(dead_code)]
 pub fn match_flag<'a>(expected: String) -> impl parcel::Parser<'a, &'a str, String> {
     any_flag().predicate(move |f| *f == expected)
 }
 
-#[allow(dead_code)]
 pub fn any_flag<'a>() -> impl parcel::Parser<'a, &'a str, String> {
     right(join(take_n(character('-'), 2), one_or_more(alphabetic())))
         .map(|cv| cv.iter().collect::<String>())
