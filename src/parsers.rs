@@ -60,6 +60,22 @@ impl ArgumentParser {
     }
 }
 
+impl<'a> Parser<'a, Vec<String>, Vec<FlagOrValue>> for ArgumentParser {
+    fn parse(&self, input: Vec<String>) -> ParseResult<'a, Vec<String>, Vec<FlagOrValue>> {
+        let flags = input
+            .iter()
+            .map(|s| self.parse(s.as_str()))
+            .map(|pr| match pr {
+                Ok(MatchStatus::Match((_, v))) => v,
+                Ok(MatchStatus::NoMatch(next)) => panic!(format!("unable to match: {}", next)),
+                Err(e) => panic!(e),
+            })
+            .collect();
+
+        Ok(MatchStatus::Match((vec![], flags)))
+    }
+}
+
 impl<'a> Parser<'a, &'a str, FlagOrValue> for ArgumentParser {
     fn parse(&self, input: &'a str) -> ParseResult<'a, &'a str, FlagOrValue> {
         any_flag()
