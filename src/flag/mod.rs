@@ -1,7 +1,3 @@
-use crate::parsers::*;
-use parcel::prelude::v1::Parser;
-use parcel::ParseResult;
-use parcel::{join, one_or_more, right, take_n}; // parser combinators
 use std::default;
 use std::fmt;
 
@@ -102,6 +98,15 @@ impl default::Default for Flag {
             short_code: String::new(),
             help_string: String::new(),
             action: Action::ExpectSingleValue,
+        }
+    }
+}
+
+impl PartialEq<FlagOrValue> for Flag {
+    fn eq(&self, fov: &FlagOrValue) -> bool {
+        match fov {
+            FlagOrValue::Flag(ref f) => f == &self.name,
+            _ => false,
         }
     }
 }

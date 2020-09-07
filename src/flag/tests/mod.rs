@@ -1,6 +1,4 @@
-use crate::flag::{Action, Flag, Value};
-use parcel::prelude::v1::*;
-use parcel::MatchStatus;
+use crate::flag::{Action, Flag};
 
 #[test]
 fn should_set_flag_defaults_on_new() {

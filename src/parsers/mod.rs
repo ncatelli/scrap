@@ -1,20 +1,11 @@
 use crate::flag::{FlagOrValue, Value};
-use parcel::{join, one_or_more, optional, right, take_n}; // parser combinators
+use parcel::{join, one_or_more, optional, right}; // parser combinators
 use parcel::{MatchStatus, ParseResult, Parser};
 
 mod character_parsers;
 mod string_parsers;
 pub use character_parsers::*;
 pub use string_parsers::*;
-
-pub fn match_flag<'a>() -> impl parcel::Parser<'a, &'a str, String> {
-    right(join(
-        take_n(character('-'), 2),
-        one_or_more(alphabetic_or_dash()),
-    ))
-    .map(|cv| cv.iter().collect::<String>())
-    .or(|| right(join(take_n(character('-'), 1), alphabetic())).map(|c| c.to_string()))
-}
 
 /// ArgumentParser handles the parsing of individual std::env::Args arguments
 /// into an intermediate FlagOrValue representation.
