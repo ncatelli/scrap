@@ -19,7 +19,7 @@ pub enum Value {
 
 /// Action stores the flag action, signifying the behavior of the flag.
 /// Examples include, storing true, false or expecting a value.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Action {
     StoreTrue,
     StoreFalse,
@@ -107,7 +107,10 @@ impl<'a> Parser<'a, &'a str, String> for Flag {
             Action::StoreTrue | Action::StoreFalse => {
                 Ok(match_flag(name).or(move || match_flag(shortcode.clone())))
             }
-            _ => Err("invalid action".to_string()),
+            Action::ExpectSingleValue => Err(format!(
+                "unimplemented action: {:?}",
+                Action::ExpectSingleValue
+            )),
         }?
         .parse(input)
     }
