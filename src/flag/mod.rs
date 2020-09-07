@@ -1,6 +1,7 @@
-use crate::parsers::match_string;
+use crate::parsers::*;
 use parcel::prelude::v1::Parser;
 use parcel::ParseResult;
+use parcel::{join, one_or_more, right, take_n}; // parser combinators
 use std::default;
 use std::fmt;
 
@@ -85,6 +86,21 @@ impl default::Default for Flag {
 
 impl<'a> Parser<'a, &'a str, String> for Flag {
     fn parse(&self, input: &'a str) -> ParseResult<'a, &'a str, String> {
-        match_string(format!("{}{}", "--", "test")).parse(input)
+        match self.action {
+            Action::StoreTrue | Action::StoreFalse => Ok(match_flag(self.name.clone())),
+            _ => Err("invalid action".to_string()),
+        }?
+        .parse(input)
     }
+}
+
+#[allow(dead_code)]
+pub fn match_flag<'a>(expected: String) -> impl parcel::Parser<'a, &'a str, String> {
+    any_flag().predicate(move |f| *f == expected)
+}
+
+#[allow(dead_code)]
+pub fn any_flag<'a>() -> impl parcel::Parser<'a, &'a str, String> {
+    right(join(take_n(character('-'), 2), one_or_more(alphabetic())))
+        .map(|cv| cv.iter().collect::<String>())
 }
