@@ -2,44 +2,12 @@ use crate::flag::{FlagOrValue, Value};
 use parcel::{join, one_or_more, optional, right, take_n}; // parser combinators
 use parcel::{MatchStatus, ParseResult, Parser};
 
-pub fn any<'a>() -> impl Parser<'a, &'a str, char> {
-    move |input: &'a str| match input.chars().next() {
-        Some(next) => Ok(MatchStatus::Match((&input[1..], next))),
-        _ => Ok(MatchStatus::NoMatch(input)),
-    }
-}
+mod character_parsers;
+mod string_parsers;
+pub use character_parsers::*;
+pub use string_parsers::*;
 
-pub fn alphabetic<'a>() -> impl Parser<'a, &'a str, char> {
-    move |input: &'a str| match input.chars().next() {
-        Some(next) if next.is_alphabetic() => Ok(MatchStatus::Match((&input[1..], next))),
-        _ => Ok(MatchStatus::NoMatch(input)),
-    }
-}
-
-pub fn alphabetic_or_dash<'a>() -> impl Parser<'a, &'a str, char> {
-    move |input: &'a str| match input.chars().next() {
-        Some(next) if next.is_alphabetic() || next == '-' || next == '_' => {
-            Ok(MatchStatus::Match((&input[1..], next)))
-        }
-        _ => Ok(MatchStatus::NoMatch(input)),
-    }
-}
-
-pub fn character<'a>(expected: char) -> impl Parser<'a, &'a str, char> {
-    move |input: &'a str| match input.chars().next() {
-        Some(next) if next == expected => Ok(MatchStatus::Match((&input[1..], next))),
-        _ => Ok(MatchStatus::NoMatch(input)),
-    }
-}
-
-pub fn numeric<'a>() -> impl Parser<'a, &'a str, char> {
-    move |input: &'a str| match input.chars().next() {
-        Some(next) if next.is_digit(10) => Ok(MatchStatus::Match((&input[1..], next))),
-        _ => Ok(MatchStatus::NoMatch(input)),
-    }
-}
-
-pub fn any_flag<'a>() -> impl parcel::Parser<'a, &'a str, String> {
+pub fn match_flag<'a>() -> impl parcel::Parser<'a, &'a str, String> {
     right(join(
         take_n(character('-'), 2),
         one_or_more(alphabetic_or_dash()),
