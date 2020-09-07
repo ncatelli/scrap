@@ -1,4 +1,4 @@
-use crate::flag::Flag;
+use crate::flag::{Flag, Value};
 use crate::parsers::ArgumentParser;
 use parcel::MatchStatus;
 use parcel::Parser;
@@ -13,6 +13,7 @@ mod parsers;
 mod tests;
 
 type FlagMap = HashMap<String, Flag>;
+pub type Config = HashMap<String, Value>;
 
 /// App functions as the top level wrapper for a command command line tool
 /// storing information about the tool, author, version and a brief description.
@@ -91,7 +92,7 @@ impl default::Default for App {
 }
 
 impl App {
-    pub fn parse(&self, input: Vec<String>) -> Result<(), String> {
+    pub fn parse(&self, input: Vec<String>) -> Result<Config, String> {
         let ap = ArgumentParser::new();
         let res = match ap.parse(input)? {
             MatchStatus::Match((_, res)) => Ok(res),
