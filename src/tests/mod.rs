@@ -1,5 +1,7 @@
 use crate::App;
 
+mod parser;
+
 #[test]
 fn should_set_app_defaults_on_new() {
     assert_eq!(

@@ -1,4 +1,6 @@
-use parcel::{MatchStatus, Parser};
+use crate::flag::FlagOrValue;
+use parcel::{join, one_or_more, right, take_n}; // parser combinators
+use parcel::{MatchStatus, ParseResult, Parser};
 
 pub fn match_string<'a>(expected: String) -> impl Parser<'a, &'a str, String> {
     move |input: &'a str| match input.get(0..expected.len()) {
@@ -34,5 +36,41 @@ pub fn character<'a>(expected: char) -> impl Parser<'a, &'a str, char> {
     move |input: &'a str| match input.chars().next() {
         Some(next) if next == expected => Ok(MatchStatus::Match((&input[1..], next))),
         _ => Ok(MatchStatus::NoMatch(input)),
+    }
+}
+
+pub fn numeric<'a>() -> impl Parser<'a, &'a str, char> {
+    move |input: &'a str| match input.chars().next() {
+        Some(next) if next.is_digit(10) => Ok(MatchStatus::Match((&input[1..], next))),
+        _ => Ok(MatchStatus::NoMatch(input)),
+    }
+}
+
+pub fn match_flag<'a>(expected: String) -> impl parcel::Parser<'a, &'a str, String> {
+    any_flag().predicate(move |f| *f == expected)
+}
+
+pub fn any_flag<'a>() -> impl parcel::Parser<'a, &'a str, String> {
+    right(join(
+        take_n(character('-'), 2),
+        one_or_more(alphabetic_or_dash()),
+    ))
+    .map(|cv| cv.iter().collect::<String>())
+    .or(|| right(join(take_n(character('-'), 1), alphabetic())).map(|c| c.to_string()))
+}
+
+/// ArgumentParser handles the parsing of individual std::env::Args arguments
+/// into an intermediate FlagOrValue representation.
+pub struct ArgumentParser {}
+
+impl ArgumentParser {
+    pub fn new() -> Self {
+        ArgumentParser {}
+    }
+}
+
+impl<'a> Parser<'a, &'a str, FlagOrValue> for ArgumentParser {
+    fn parse(&self, input: &'a str) -> ParseResult<'a, &'a str, FlagOrValue> {
+        any_flag().map(|f| FlagOrValue::Flag(f)).parse(input)
     }
 }

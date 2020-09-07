@@ -20,7 +20,7 @@ pub enum FlagOrValue {
 pub enum Value {
     Str(String),
     Bool(bool),
-    Integer(i64),
+    Integer(u64),
     Float(f64),
 }
 
@@ -104,62 +104,4 @@ impl default::Default for Flag {
             action: Action::ExpectSingleValue,
         }
     }
-}
-
-impl<'a> Parser<'a, &'a [&'a str], (String, Value)> for Flag {
-    fn parse(&self, _input: &'a [&'a str]) -> ParseResult<'a, &'a [&'a str], (String, Value)> {
-        Err("Unimplemented".to_string())
-        /*
-        let name = self.name.clone();
-        let shortcode = self.short_code.clone();
-        match self.action {
-            Action::StoreTrue => match_flag(name)
-                .or(move || match_flag(shortcode.clone()))
-                .map(|res| (res, Value::Bool(true))),
-            Action::StoreFalse => match_flag(name)
-                .or(move || match_flag(shortcode.clone()))
-                .map(|res| (res, Value::Bool(false))),
-            Action::ExpectSingleValue => join(
-                match_flag(name).or(move || match_flag(shortcode.clone())),
-                right(join(whitespace(), one_or_more(alphabetic()))),
-            )
-            .map(|(res, v)| (res, Value::Str(v.iter().collect::<String>()))),
-        }
-        .parse(input)
-        */
-    }
-}
-
-impl<'a> Parser<'a, &'a str, (String, Value)> for Flag {
-    fn parse(&self, input: &'a str) -> ParseResult<'a, &'a str, (String, Value)> {
-        let name = self.name.clone();
-        let shortcode = self.short_code.clone();
-        match self.action {
-            Action::StoreTrue => match_flag(name)
-                .or(move || match_flag(shortcode.clone()))
-                .map(|res| (res, Value::Bool(true))),
-            Action::StoreFalse => match_flag(name)
-                .or(move || match_flag(shortcode.clone()))
-                .map(|res| (res, Value::Bool(false))),
-            Action::ExpectSingleValue => join(
-                match_flag(name).or(move || match_flag(shortcode.clone())),
-                right(join(whitespace(), one_or_more(alphabetic()))),
-            )
-            .map(|(res, v)| (res, Value::Str(v.iter().collect::<String>()))),
-        }
-        .parse(input)
-    }
-}
-
-pub fn match_flag<'a>(expected: String) -> impl parcel::Parser<'a, &'a str, String> {
-    any_flag().predicate(move |f| *f == expected)
-}
-
-pub fn any_flag<'a>() -> impl parcel::Parser<'a, &'a str, String> {
-    right(join(
-        take_n(character('-'), 2),
-        one_or_more(alphabetic_or_dash()),
-    ))
-    .map(|cv| cv.iter().collect::<String>())
-    .or(|| right(join(take_n(character('-'), 1), alphabetic())).map(|c| c.to_string()))
 }
