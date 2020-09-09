@@ -2,6 +2,7 @@ use crate::flag::{Flag, Value};
 use crate::parsers::ArgumentParser;
 use parcel::MatchStatus;
 use parcel::Parser;
+use parcel::{one_of, one_or_more}; // parcel parser combinators
 use std::collections::HashMap;
 use std::default;
 use std::fmt;
@@ -92,14 +93,26 @@ impl default::Default for App {
 
 impl App {
     pub fn parse(&self, input: Vec<String>) -> Result<Config, String> {
-        let ap = ArgumentParser::new();
-        let res = match ap.parse(input)? {
+        let mut cm = Config::new();
+
+        let res = match ArgumentParser::new().parse(input)? {
             MatchStatus::Match((_, res)) => Ok(res),
             MatchStatus::NoMatch(remainder) => {
                 Err(format!("unable to parse full arg string: {:?}", remainder))
             }
         }?;
 
-        Err("Unimplemented".to_string())
+        let config_pairs = match one_or_more(one_of(self.flags.clone())).parse(&res)? {
+            MatchStatus::Match((_, res)) => Ok(res),
+            MatchStatus::NoMatch(remainder) => {
+                Err(format!("unable to parse full arg string: {:?}", remainder))
+            }
+        }?;
+
+        for pair in config_pairs.into_iter() {
+            cm.insert(pair.0, pair.1);
+        }
+
+        Ok(cm)
     }
 }
