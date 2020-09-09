@@ -140,11 +140,9 @@ impl<'a> Parser<'a, &'a [FlagOrValue], (String, Value)> for Flag {
     ) -> ParseResult<'a, &'a [FlagOrValue], (String, Value)> {
         let owned_flag = Flag::new().name(&self.name).short_code(&self.short_code);
         match self.action {
-            Action::StoreTrue => {
-                match_owned_flag(owned_flag).map(|f| (f.name.clone(), Value::Bool(true)))
-            }
+            Action::StoreTrue => match_owned_flag(owned_flag).map(|f| (f.name, Value::Bool(true))),
             Action::StoreFalse => {
-                match_owned_flag(owned_flag).map(|f| (f.name.clone(), Value::Bool(false)))
+                match_owned_flag(owned_flag).map(|f| (f.name, Value::Bool(false)))
             }
             Action::ExpectSingleValue => join(
                 match_owned_flag(owned_flag),
