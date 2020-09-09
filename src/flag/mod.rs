@@ -1,3 +1,6 @@
+use crate::parsers::*;
+use parcel::prelude::v1::Parser;
+use parcel::ParseResult;
 use std::default;
 use std::fmt;
 
@@ -10,6 +13,15 @@ pub enum FlagOrValue {
     Value(Value),
 }
 
+/// ValueType represents one of the values that can be assigned to a flag.
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum ValueType {
+    Any,
+    Str,
+    Bool,
+    Integer,
+    Float,
+}
 /// Value represents one of the values that can be encoded into an argument.
 /// Currently, this can be represented as either a string, boolean or number.
 #[derive(Debug, PartialEq, Clone)]
@@ -35,9 +47,10 @@ pub enum Action {
 /// a value
 pub struct Flag {
     pub name: String,
-    short_code: String,
+    pub short_code: String,
     help_string: String,
     action: Action,
+    pub value_type: ValueType,
 }
 
 impl Flag {
@@ -73,6 +86,13 @@ impl Flag {
         self.action = action;
         self
     }
+
+    /// Set the action field.
+    #[allow(dead_code)]
+    pub fn value_type(mut self, vt: ValueType) -> Flag {
+        self.value_type = vt;
+        self
+    }
 }
 
 impl fmt::Display for Flag {
@@ -98,6 +118,7 @@ impl default::Default for Flag {
             short_code: String::new(),
             help_string: String::new(),
             action: Action::ExpectSingleValue,
+            value_type: ValueType::Any,
         }
     }
 }
@@ -108,5 +129,28 @@ impl PartialEq<FlagOrValue> for Flag {
             FlagOrValue::Flag(ref f) => f == &self.name,
             _ => false,
         }
+    }
+}
+
+impl<'a> Parser<'a, &'a [FlagOrValue], (String, Value)> for Flag {
+    fn parse(
+        &self,
+        input: &'a [FlagOrValue],
+    ) -> ParseResult<'a, &'a [FlagOrValue], (String, Value)> {
+        match self.action {
+            Action::StoreTrue => {
+                match_owned_flag(Flag::new().name(&self.name).short_code(&self.short_code))
+                    .map(|f| (f.name.clone(), Value::Bool(true)))
+            }
+            Action::StoreFalse => {
+                match_owned_flag(Flag::new().name(&self.name).short_code(&self.short_code))
+                    .map(|f| (f.name.clone(), Value::Bool(false)))
+            }
+            Action::ExpectSingleValue => {
+                match_owned_flag(Flag::new().name(&self.name).short_code(&self.short_code))
+                    .map(|f| (f.name.clone(), Value::Bool(false)))
+            }
+        }
+        .parse(input)
     }
 }
