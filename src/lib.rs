@@ -12,7 +12,6 @@ mod parsers;
 #[cfg(test)]
 mod tests;
 
-type FlagMap = HashMap<String, Flag>;
 pub type Config = HashMap<String, Value>;
 
 /// App functions as the top level wrapper for a command command line tool
@@ -23,7 +22,7 @@ pub struct App {
     author: String,
     description: String,
     version: String,
-    flags: FlagMap,
+    flags: Vec<Flag>,
 }
 
 impl App {
@@ -57,7 +56,7 @@ impl App {
 
     /// Set a flag.
     pub fn flag(mut self, f: Flag) -> App {
-        self.flags.insert(f.name.clone(), f);
+        self.flags.push(f);
         self
     }
 }
@@ -86,7 +85,7 @@ impl default::Default for App {
             author: String::new(),
             description: String::new(),
             version: String::new(),
-            flags: FlagMap::new(),
+            flags: Vec::new(),
         }
     }
 }
