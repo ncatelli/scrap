@@ -1,5 +1,7 @@
-use crate::flag::{Flag, Value};
+use crate::flag::{Flag, Value, ValueType};
+use crate::parsers::match_value_type;
 use crate::parsers::ArgumentParser;
+use parcel::join;
 use parcel::MatchStatus;
 use parcel::Parser;
 use parcel::{one_of, one_or_more}; // parcel parser combinators
@@ -92,6 +94,9 @@ impl default::Default for App {
 }
 
 impl App {
+    /// parse expects a Vec<String> representing all argumets provided from
+    /// std::env::Args, including the base command and attempts to parse it
+    /// into a corresponding Config.
     pub fn parse(&self, input: Vec<String>) -> Result<Config, String> {
         let mut cm = Config::new();
 
@@ -102,8 +107,13 @@ impl App {
             }
         }?;
 
-        let config_pairs = match one_or_more(one_of(self.flags.clone())).parse(&res)? {
-            MatchStatus::Match((_, res)) => Ok(res),
+        let config_pairs = match join(
+            match_value_type(ValueType::Str),
+            one_or_more(one_of(self.flags.clone())),
+        )
+        .parse(&res)?
+        {
+            MatchStatus::Match((_, (_, res))) => Ok(res),
             MatchStatus::NoMatch(remainder) => {
                 Err(format!("unable to parse full arg string: {:?}", remainder))
             }

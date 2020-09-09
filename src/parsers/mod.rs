@@ -23,17 +23,27 @@ impl ArgumentParser {
 
 impl<'a> Parser<'a, Vec<String>, Vec<FlagOrValue>> for ArgumentParser {
     fn parse(&self, input: Vec<String>) -> ParseResult<'a, Vec<String>, Vec<FlagOrValue>> {
-        let flags = input
+        let mut remainder: Vec<String> = vec![];
+        let mut flags: Vec<FlagOrValue> = vec![];
+
+        let res: Vec<Result<FlagOrValue, String>> = input
             .iter()
             .map(|s| self.parse(s.as_str()))
             .map(|pr| match pr {
-                Ok(MatchStatus::Match((_, v))) => v,
-                Ok(MatchStatus::NoMatch(next)) => panic!(format!("unable to match: {}", next)),
+                Ok(MatchStatus::Match((_, v))) => Ok(v),
+                Ok(MatchStatus::NoMatch(next)) => Err(next.to_string()),
                 Err(e) => panic!(e),
             })
             .collect();
 
-        Ok(MatchStatus::Match((vec![], flags)))
+        for i in res.into_iter() {
+            match i {
+                Ok(fov) => flags.push(fov),
+                Err(next) => remainder.push(next),
+            }
+        }
+
+        Ok(MatchStatus::Match((remainder, flags)))
     }
 }
 
