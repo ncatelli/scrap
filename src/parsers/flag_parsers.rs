@@ -1,7 +1,7 @@
 use crate::flag::{Flag, FlagOrValue, Value, ValueType};
 use parcel::{MatchStatus, Parser};
 
-pub fn match_owned_flag<'a>(expected: Flag) -> impl Parser<'a, &'a [FlagOrValue], Flag> {
+pub fn match_flag<'a>(expected: Flag) -> impl Parser<'a, &'a [FlagOrValue], Flag> {
     move |input: &'a [FlagOrValue]| match input.get(0) {
         Some(FlagOrValue::Flag(name)) if name == &expected.name || name == &expected.short_code => {
             Ok(MatchStatus::Match((&input[1..], expected.clone())))
