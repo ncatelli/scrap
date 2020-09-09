@@ -1,4 +1,5 @@
 use crate::parsers::*;
+use parcel::join; // parcel parser combinators
 use parcel::prelude::v1::Parser;
 use parcel::ParseResult;
 use std::default;
@@ -146,10 +147,11 @@ impl<'a> Parser<'a, &'a [FlagOrValue], (String, Value)> for Flag {
                 match_owned_flag(Flag::new().name(&self.name).short_code(&self.short_code))
                     .map(|f| (f.name.clone(), Value::Bool(false)))
             }
-            Action::ExpectSingleValue => {
-                match_owned_flag(Flag::new().name(&self.name).short_code(&self.short_code))
-                    .map(|f| (f.name.clone(), Value::Bool(false)))
-            }
+            Action::ExpectSingleValue => join(
+                match_owned_flag(Flag::new().name(&self.name).short_code(&self.short_code)),
+                match_value_type(self.value_type),
+            )
+            .map(|(f, v)| (f.name.clone(), v)),
         }
         .parse(input)
     }
