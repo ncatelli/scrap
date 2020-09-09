@@ -41,7 +41,7 @@ impl<'a> Parser<'a, Vec<String>, Vec<FlagOrValue>> for ArgumentParser {
 impl<'a> Parser<'a, &'a str, FlagOrValue> for ArgumentParser {
     fn parse(&self, input: &'a str) -> ParseResult<'a, &'a str, FlagOrValue> {
         any_flag()
-            .map(|f| FlagOrValue::Flag(f))
+            .map(FlagOrValue::Flag)
             .or(|| {
                 join(
                     one_or_more(numeric()),
