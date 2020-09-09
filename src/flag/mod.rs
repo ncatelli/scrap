@@ -5,6 +5,7 @@ use parcel::ParseResult;
 use std::default;
 use std::fmt;
 
+#[cfg(test)]
 mod tests;
 
 /// FlagOrvalue represents a state of being either a flag or a value to be returned my the parser.

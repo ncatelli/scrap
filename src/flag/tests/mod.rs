@@ -1,9 +1,10 @@
-use crate::flag::{Action, Flag};
+use crate::flag::Action;
+use crate::flag::Flag;
 
 #[test]
 fn should_set_flag_defaults_on_new() {
     assert_eq!(
-        Flag::default(),
+        crate::flag::Flag::default(),
         Flag::new().name("").short_code("").help_string("")
     );
 }
