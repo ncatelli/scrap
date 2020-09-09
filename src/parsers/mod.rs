@@ -1,5 +1,4 @@
 use crate::flag::{FlagOrValue, Value};
-use crate::Config;
 use parcel::{join, one_or_more, optional, right}; // parser combinators
 use parcel::{MatchStatus, ParseResult, Parser};
 
@@ -67,11 +66,5 @@ impl<'a> Parser<'a, &'a str, FlagOrValue> for ArgumentParser {
                     .map(|cv| FlagOrValue::Value(Value::Str(cv.iter().collect::<String>())))
             })
             .parse(input)
-    }
-}
-
-impl<'a> Parser<'a, &'a [FlagOrValue], Config> for ArgumentParser {
-    fn parse(&self, _input: &'a [FlagOrValue]) -> ParseResult<'a, &'a [FlagOrValue], Config> {
-        Err("Unimplemented".to_string())
     }
 }
