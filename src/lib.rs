@@ -128,8 +128,7 @@ impl App {
                         FlagOrValue::Flag(f) => Ok(f),
                         _ => Err(()),
                     })
-                    .filter(|f| f.is_ok())
-                    .map(|f| f.unwrap())
+                    .filter_map(|f| f.ok())
                     .collect();
 
                 if unparsed_flags.len() > 0 {
