@@ -53,6 +53,7 @@ pub struct Flag {
     help_string: String,
     action: Action,
     pub value_type: ValueType,
+    default_value: Option<Value>,
 }
 
 impl Flag {
@@ -62,37 +63,38 @@ impl Flag {
     }
 
     /// Set the command name.
-    #[allow(dead_code)]
     pub fn name(mut self, name: &str) -> Flag {
         self.name = name.to_string();
         self
     }
 
     /// Set the short_code.
-    #[allow(dead_code)]
     pub fn short_code(mut self, short: &str) -> Flag {
         self.short_code = short.to_string();
         self
     }
 
     /// Set the description.
-    #[allow(dead_code)]
     pub fn help_string(mut self, hs: &str) -> Flag {
         self.help_string = hs.to_string();
         self
     }
 
     /// Set the action field.
-    #[allow(dead_code)]
     pub fn action(mut self, action: Action) -> Flag {
         self.action = action;
         self
     }
 
     /// Set the action field.
-    #[allow(dead_code)]
     pub fn value_type(mut self, vt: ValueType) -> Flag {
         self.value_type = vt;
+        self
+    }
+
+    /// Set the default_value field.
+    pub fn default_value(mut self, v: Value) -> Flag {
+        self.default_value = Some(v);
         self
     }
 }
@@ -121,6 +123,7 @@ impl default::Default for Flag {
             help_string: String::new(),
             action: Action::ExpectSingleValue,
             value_type: ValueType::Any,
+            default_value: None,
         }
     }
 }
