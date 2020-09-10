@@ -100,6 +100,14 @@ impl App {
     pub fn parse(&self, input: Vec<String>) -> Result<Config, String> {
         let mut cm = Config::new();
 
+        // set defaults
+        for f in self.flags.iter() {
+            match f.default_value {
+                Some(ref v) => cm.insert(f.name.clone(), v.clone()),
+                None => continue,
+            };
+        }
+
         let res = match ArgumentParser::new().parse(input)? {
             MatchStatus::Match((_, res)) => Ok(res),
             MatchStatus::NoMatch(remainder) => {

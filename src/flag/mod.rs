@@ -53,7 +53,7 @@ pub struct Flag {
     help_string: String,
     action: Action,
     pub value_type: ValueType,
-    default_value: Option<Value>,
+    pub default_value: Option<Value>,
 }
 
 impl Flag {
