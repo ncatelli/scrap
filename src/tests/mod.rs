@@ -99,3 +99,25 @@ fn should_set_default_values_on_unprovided_values() {
             .parse(input)
     );
 }
+
+#[test]
+fn should_ignore_invalid_flags() {
+    let input = to_string_vec!(vec!["example", "--version", "-s", "1024"]);
+
+    assert_eq!(
+        Err("unable to parse all flags: [\"s\"]".to_string()),
+        App::new()
+            .name("example")
+            .description("this is a test")
+            .author("John Doe <jdoe@example.com>")
+            .version("1.2.3")
+            .flag(
+                Flag::new()
+                    .name("version")
+                    .short_code("v")
+                    .action(Action::StoreTrue)
+                    .value_type(ValueType::Bool)
+            )
+            .parse(input)
+    );
+}

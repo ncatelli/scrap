@@ -1,4 +1,4 @@
-use crate::flag::{Flag, Value, ValueType};
+use crate::flag::{Flag, FlagOrValue, Value, ValueType};
 use crate::parsers::match_value_type;
 use crate::parsers::ArgumentParser;
 use parcel::join;
@@ -121,7 +121,23 @@ impl App {
         )
         .parse(&res)?
         {
-            MatchStatus::Match((_, (_, res))) => Ok(res),
+            MatchStatus::Match((remainder, (_, res))) => {
+                let unparsed_flags: Vec<&String> = remainder
+                    .iter()
+                    .map(|fov| match fov {
+                        FlagOrValue::Flag(f) => Ok(f),
+                        _ => Err(()),
+                    })
+                    .filter(|f| f.is_ok())
+                    .map(|f| f.unwrap())
+                    .collect();
+
+                if unparsed_flags.len() > 0 {
+                    Err(format!("unable to parse all flags: {:?}", unparsed_flags))
+                } else {
+                    Ok(res)
+                }
+            }
             MatchStatus::NoMatch(remainder) => {
                 Err(format!("unable to parse full arg string: {:?}", remainder))
             }
