@@ -131,7 +131,7 @@ impl App {
                     .filter_map(|f| f.ok())
                     .collect();
 
-                if unparsed_flags.len() > 0 {
+                if !unparsed_flags.is_empty() {
                     Err(format!("unable to parse all flags: {:?}", unparsed_flags))
                 } else {
                     Ok(res)
