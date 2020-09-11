@@ -13,14 +13,6 @@ macro_rules! to_string_vec {
 }
 
 #[test]
-fn should_set_cmd_defaults_on_new() {
-    assert_eq!(
-        Cmd::default(),
-        Cmd::new().name("").description("").author("").version("")
-    );
-}
-
-#[test]
 fn should_match_expected_help_message() {
     assert_eq!(
         "this is a test\nUsage: example [OPTIONS] [SUBCOMMAND]",

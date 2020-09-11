@@ -15,11 +15,14 @@ mod parsers;
 #[cfg(test)]
 mod tests;
 
+/// Config represents a String -> Value mapping as parsed from flags.
 pub type Config = HashMap<String, Value>;
+
+/// DispatchFn stores an invocable function to be called by the cli
+pub type DispatchFn = dyn FnOnce(Config);
 
 /// Cmd functions as the top level wrapper for a command command line tool
 /// storing information about the tool, author, version and a brief description.
-#[derive(Debug, Clone, PartialEq)]
 pub struct Cmd {
     name: String,
     author: String,
