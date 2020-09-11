@@ -1,5 +1,5 @@
 use crate::flag::{Action, Flag, Value, ValueType};
-use crate::{App, Config};
+use crate::{Cmd, Config};
 
 mod parser;
 
@@ -13,10 +13,10 @@ macro_rules! to_string_vec {
 }
 
 #[test]
-fn should_set_app_defaults_on_new() {
+fn should_set_cmd_defaults_on_new() {
     assert_eq!(
-        App::default(),
-        App::new().name("").description("").author("").version("")
+        Cmd::default(),
+        Cmd::new().name("").description("").author("").version("")
     );
 }
 
@@ -26,7 +26,7 @@ fn should_match_expected_help_message() {
         "this is a test\nUsage: example [OPTIONS] [SUBCOMMAND]",
         format!(
             "{}",
-            App::new()
+            Cmd::new()
                 .name("example")
                 .description("this is a test")
                 .author("John Doe <jdoe@example.com>")
@@ -44,7 +44,7 @@ fn should_parse_raw_input_vec_to_config() {
 
     assert_eq!(
         Ok(expected_config),
-        App::new()
+        Cmd::new()
             .name("example")
             .description("this is a test")
             .author("John Doe <jdoe@example.com>")
@@ -76,7 +76,7 @@ fn should_set_default_values_on_unprovided_values() {
 
     assert_eq!(
         Ok(expected_config),
-        App::new()
+        Cmd::new()
             .name("example")
             .description("this is a test")
             .author("John Doe <jdoe@example.com>")
@@ -106,7 +106,7 @@ fn should_ignore_invalid_flags() {
 
     assert_eq!(
         Err("unable to parse all flags: [\"s\"]".to_string()),
-        App::new()
+        Cmd::new()
             .name("example")
             .description("this is a test")
             .author("John Doe <jdoe@example.com>")

@@ -17,10 +17,10 @@ mod tests;
 
 pub type Config = HashMap<String, Value>;
 
-/// App functions as the top level wrapper for a command command line tool
+/// Cmd functions as the top level wrapper for a command command line tool
 /// storing information about the tool, author, version and a brief description.
 #[derive(Debug, Clone, PartialEq)]
-pub struct App {
+pub struct Cmd {
     name: String,
     author: String,
     description: String,
@@ -28,43 +28,43 @@ pub struct App {
     flags: Vec<Flag>,
 }
 
-impl App {
+impl Cmd {
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Set the command name.
-    pub fn name(mut self, name: &str) -> App {
+    pub fn name(mut self, name: &str) -> Cmd {
         self.name = name.to_string();
         self
     }
 
     /// Set the author name.
-    pub fn author(mut self, author: &str) -> App {
+    pub fn author(mut self, author: &str) -> Cmd {
         self.author = author.to_string();
         self
     }
 
     /// Set the short description.
-    pub fn description(mut self, desc: &str) -> App {
+    pub fn description(mut self, desc: &str) -> Cmd {
         self.description = desc.to_string();
         self
     }
 
     /// Set the version.
-    pub fn version(mut self, vers: &str) -> App {
+    pub fn version(mut self, vers: &str) -> Cmd {
         self.version = vers.to_string();
         self
     }
 
     /// Set a flag.
-    pub fn flag(mut self, f: Flag) -> App {
+    pub fn flag(mut self, f: Flag) -> Cmd {
         self.flags.push(f);
         self
     }
 }
 
-impl fmt::Display for App {
+impl fmt::Display for Cmd {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let desc = if !self.description.is_empty() {
             format!("{}\n", &self.description)
@@ -81,9 +81,9 @@ impl fmt::Display for App {
     }
 }
 
-impl default::Default for App {
+impl default::Default for Cmd {
     fn default() -> Self {
-        App {
+        Cmd {
             name: String::new(),
             author: String::new(),
             description: String::new(),
@@ -93,7 +93,7 @@ impl default::Default for App {
     }
 }
 
-impl App {
+impl Cmd {
     /// parse expects a Vec<String> representing all argumets provided from
     /// std::env::Args, including the base command and attempts to parse it
     /// into a corresponding Config.
