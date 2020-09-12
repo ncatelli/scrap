@@ -29,6 +29,7 @@ pub struct Cmd {
     description: String,
     version: String,
     flags: Vec<Flag>,
+    handler: Box<DispatchFn>,
 }
 
 impl Cmd {
@@ -65,6 +66,12 @@ impl Cmd {
         self.flags.push(f);
         self
     }
+
+    /// Set a flag.
+    pub fn handler(mut self, handler: Box<DispatchFn>) -> Cmd {
+        self.handler = handler;
+        self
+    }
 }
 
 impl fmt::Display for Cmd {
@@ -92,6 +99,7 @@ impl default::Default for Cmd {
             description: String::new(),
             version: String::new(),
             flags: Vec::new(),
+            handler: Box::new(|_conf| {}),
         }
     }
 }
