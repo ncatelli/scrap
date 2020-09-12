@@ -113,3 +113,28 @@ fn should_ignore_invalid_flags() {
             .parse(input)
     );
 }
+
+#[test]
+fn should_accept_dispatch_handler() {
+    let input = to_string_vec!(vec!["example", "--version"]);
+    let mut expected_config = Config::new();
+    expected_config.insert("version".to_string(), Value::Bool(true));
+
+    assert_eq!(
+        Ok(expected_config),
+        Cmd::new()
+            .name("example")
+            .description("this is a test")
+            .author("John Doe <jdoe@example.com>")
+            .version("1.2.3")
+            .flag(
+                Flag::new()
+                    .name("version")
+                    .short_code("v")
+                    .action(Action::StoreTrue)
+                    .value_type(ValueType::Bool)
+            )
+            .handler(Box::new(|_| Ok(0)))
+            .parse(input)
+    );
+}

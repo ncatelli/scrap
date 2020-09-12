@@ -18,8 +18,11 @@ mod tests;
 /// Config represents a String -> Value mapping as parsed from flags.
 pub type Config = HashMap<String, Value>;
 
+/// Represents the result of a dispatch function call.
+pub type DispatchFnResult = Result<u32, String>;
+
 /// DispatchFn stores an invocable function to be called by the cli
-pub type DispatchFn = dyn FnOnce(Config);
+pub type DispatchFn = dyn Fn(Config) -> DispatchFnResult;
 
 /// Cmd functions as the top level wrapper for a command command line tool
 /// storing information about the tool, author, version and a brief description.
@@ -29,7 +32,7 @@ pub struct Cmd {
     description: String,
     version: String,
     flags: Vec<Flag>,
-    handler: Box<DispatchFn>,
+    handler_func: Box<DispatchFn>,
 }
 
 impl Cmd {
@@ -69,7 +72,7 @@ impl Cmd {
 
     /// Set a flag.
     pub fn handler(mut self, handler: Box<DispatchFn>) -> Cmd {
-        self.handler = handler;
+        self.handler_func = handler;
         self
     }
 }
@@ -99,7 +102,7 @@ impl default::Default for Cmd {
             description: String::new(),
             version: String::new(),
             flags: Vec::new(),
-            handler: Box::new(|_conf| {}),
+            handler_func: Box::new(|_conf| Err("Unimplemented".to_string())),
         }
     }
 }
@@ -158,5 +161,11 @@ impl Cmd {
         }
 
         Ok(cm)
+    }
+
+    /// dispatch accepts a config as an argument to be passed on to the
+    /// commands contained handler method.
+    pub fn dispatch(&self, conf: Config) -> Result<u32, String> {
+        (self.handler_func)(conf)
     }
 }
