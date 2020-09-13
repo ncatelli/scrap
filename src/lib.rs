@@ -74,7 +74,6 @@ pub struct Cmd {
     description: String,
     version: String,
     flags: Vec<Flag>,
-    subcommands: Vec<Cmd>,
     handler_func: Box<DispatchFn>,
 }
 
@@ -113,12 +112,6 @@ impl Cmd {
         self
     }
 
-    /// Set a subcommand.
-    pub fn subcommand(mut self, c: Cmd) -> Cmd {
-        self.subcommands.push(c);
-        self
-    }
-
     /// Set a cmd handler.
     pub fn handler(mut self, handler: Box<DispatchFn>) -> Cmd {
         self.handler_func = handler;
@@ -151,7 +144,6 @@ impl default::Default for Cmd {
             description: String::new(),
             version: String::new(),
             flags: Vec::new(),
-            subcommands: Vec::new(),
             handler_func: Box::new(|_conf| Err("Unimplemented".to_string())),
         }
     }
