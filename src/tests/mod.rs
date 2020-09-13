@@ -1,5 +1,5 @@
 use crate::flag::{Action, Flag, Value, ValueType};
-use crate::{App, Config};
+use crate::{Cmd, Config};
 
 mod parser;
 
@@ -13,20 +13,12 @@ macro_rules! to_string_vec {
 }
 
 #[test]
-fn should_set_app_defaults_on_new() {
-    assert_eq!(
-        App::default(),
-        App::new().name("").description("").author("").version("")
-    );
-}
-
-#[test]
 fn should_match_expected_help_message() {
     assert_eq!(
         "this is a test\nUsage: example [OPTIONS] [SUBCOMMAND]",
         format!(
             "{}",
-            App::new()
+            Cmd::new()
                 .name("example")
                 .description("this is a test")
                 .author("John Doe <jdoe@example.com>")
@@ -43,8 +35,8 @@ fn should_parse_raw_input_vec_to_config() {
     expected_config.insert("size".to_string(), Value::Integer(1024));
 
     assert_eq!(
-        Ok(expected_config),
-        App::new()
+        expected_config,
+        Cmd::new()
             .name("example")
             .description("this is a test")
             .author("John Doe <jdoe@example.com>")
@@ -64,6 +56,8 @@ fn should_parse_raw_input_vec_to_config() {
                     .value_type(ValueType::Integer)
             )
             .parse(input)
+            .unwrap()
+            .to_config()
     );
 }
 
@@ -75,8 +69,8 @@ fn should_set_default_values_on_unprovided_values() {
     expected_config.insert("size".to_string(), Value::Integer(1024));
 
     assert_eq!(
-        Ok(expected_config),
-        App::new()
+        expected_config,
+        Cmd::new()
             .name("example")
             .description("this is a test")
             .author("John Doe <jdoe@example.com>")
@@ -97,6 +91,8 @@ fn should_set_default_values_on_unprovided_values() {
                     .default_value(Value::Integer(1024))
             )
             .parse(input)
+            .unwrap()
+            .to_config()
     );
 }
 
@@ -106,7 +102,7 @@ fn should_ignore_invalid_flags() {
 
     assert_eq!(
         Err("unable to parse all flags: [\"s\"]".to_string()),
-        App::new()
+        Cmd::new()
             .name("example")
             .description("this is a test")
             .author("John Doe <jdoe@example.com>")
@@ -119,5 +115,57 @@ fn should_ignore_invalid_flags() {
                     .value_type(ValueType::Bool)
             )
             .parse(input)
+    );
+}
+
+#[test]
+fn should_accept_dispatch_handler() {
+    let input = to_string_vec!(vec!["example", "--version"]);
+    let mut expected_config = Config::new();
+    expected_config.insert("version".to_string(), Value::Bool(true));
+
+    assert_eq!(
+        expected_config,
+        Cmd::new()
+            .name("example")
+            .description("this is a test")
+            .author("John Doe <jdoe@example.com>")
+            .version("1.2.3")
+            .flag(
+                Flag::new()
+                    .name("version")
+                    .short_code("v")
+                    .action(Action::StoreTrue)
+                    .value_type(ValueType::Bool)
+            )
+            .handler(Box::new(|_| Ok(0)))
+            .parse(input)
+            .unwrap()
+            .to_config()
+    );
+}
+
+#[test]
+fn should_dispatch() {
+    let input = to_string_vec!(vec!["example", "--version"]);
+
+    assert_eq!(
+        Ok(0),
+        Cmd::new()
+            .name("example")
+            .description("this is a test")
+            .author("John Doe <jdoe@example.com>")
+            .version("1.2.3")
+            .flag(
+                Flag::new()
+                    .name("version")
+                    .short_code("v")
+                    .action(Action::StoreTrue)
+                    .value_type(ValueType::Bool)
+            )
+            .handler(Box::new(|_| Ok(0)))
+            .parse(input)
+            .unwrap()
+            .dispatch()
     );
 }
