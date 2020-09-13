@@ -18,6 +18,19 @@ mod tests;
 /// Config represents a String -> Value mapping as parsed from flags.
 pub type Config = HashMap<String, Value>;
 
+fn config_from_defaults(flags: &[Flag]) -> Config {
+    let mut cm = Config::new();
+
+    for f in flags.iter() {
+        match f.default_value {
+            Some(ref v) => cm.insert(f.name.clone(), v.clone()),
+            None => continue,
+        };
+    }
+
+    cm
+}
+
 /// Represents the result of a dispatch function call.
 pub type DispatchFnResult = Result<u32, String>;
 
@@ -154,15 +167,7 @@ impl Cmd {
     /// std::env::Args, including the base command and attempts to parse it
     /// into a corresponding Command Dispatcher.
     pub fn parse(self, input: Vec<String>) -> Result<CmdDispatcher, String> {
-        let mut cm = Config::new();
-
-        // set defaults
-        for f in self.flags.iter() {
-            match f.default_value {
-                Some(ref v) => cm.insert(f.name.clone(), v.clone()),
-                None => continue,
-            };
-        }
+        let mut cm = config_from_defaults(&self.flags);
 
         let res = match ArgumentParser::new().parse(input)? {
             MatchStatus::Match((_, res)) => Ok(res),
