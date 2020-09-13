@@ -35,7 +35,7 @@ fn should_parse_raw_input_vec_to_config() {
     expected_config.insert("size".to_string(), Value::Integer(1024));
 
     assert_eq!(
-        Ok(expected_config),
+        expected_config,
         Cmd::new()
             .name("example")
             .description("this is a test")
@@ -56,6 +56,8 @@ fn should_parse_raw_input_vec_to_config() {
                     .value_type(ValueType::Integer)
             )
             .parse(input)
+            .unwrap()
+            .to_config()
     );
 }
 
@@ -67,7 +69,7 @@ fn should_set_default_values_on_unprovided_values() {
     expected_config.insert("size".to_string(), Value::Integer(1024));
 
     assert_eq!(
-        Ok(expected_config),
+        expected_config,
         Cmd::new()
             .name("example")
             .description("this is a test")
@@ -89,6 +91,8 @@ fn should_set_default_values_on_unprovided_values() {
                     .default_value(Value::Integer(1024))
             )
             .parse(input)
+            .unwrap()
+            .to_config()
     );
 }
 
@@ -121,7 +125,7 @@ fn should_accept_dispatch_handler() {
     expected_config.insert("version".to_string(), Value::Bool(true));
 
     assert_eq!(
-        Ok(expected_config),
+        expected_config,
         Cmd::new()
             .name("example")
             .description("this is a test")
@@ -136,5 +140,7 @@ fn should_accept_dispatch_handler() {
             )
             .handler(Box::new(|_| Ok(0)))
             .parse(input)
+            .unwrap()
+            .to_config()
     );
 }

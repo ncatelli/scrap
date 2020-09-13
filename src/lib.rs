@@ -24,6 +24,48 @@ pub type DispatchFnResult = Result<u32, String>;
 /// DispatchFn stores an invocable function to be called by the cli
 pub type DispatchFn = dyn Fn(Config) -> DispatchFnResult;
 
+/// CmdDispatcher captures a parsed config and a handler function to carry forward
+/// commands.
+pub struct CmdDispatcher {
+    pub config: Config,
+    pub handler_func: Box<DispatchFn>,
+}
+
+impl CmdDispatcher {
+    pub fn new(config: Config, handler_func: Box<DispatchFn>) -> Self {
+        CmdDispatcher {
+            config,
+            handler_func,
+        }
+    }
+
+    /// Explicilty converts a dispatcher to its enclosed config.
+    pub fn to_config(self) -> Config {
+        self.config
+    }
+
+    /// dispatch accepts a config as an argument to be passed on to the
+    /// commands contained handler method.
+    pub fn dispatch(self) -> Result<u32, String> {
+        (self.handler_func)(self.config)
+    }
+}
+
+impl fmt::Debug for CmdDispatcher {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("CmdDispatcher")
+            .field("config", &self.config)
+            .field("handler_func", &"Fn(Config) -> DispatchFnResult")
+            .finish()
+    }
+}
+
+impl PartialEq for CmdDispatcher {
+    fn eq(&self, other: &CmdDispatcher) -> bool {
+        self.config == other.config
+    }
+}
+
 /// Cmd functions as the top level wrapper for a command command line tool
 /// storing information about the tool, author, version and a brief description.
 pub struct Cmd {
@@ -110,8 +152,8 @@ impl default::Default for Cmd {
 impl Cmd {
     /// parse expects a Vec<String> representing all argumets provided from
     /// std::env::Args, including the base command and attempts to parse it
-    /// into a corresponding Config.
-    pub fn parse(&self, input: Vec<String>) -> Result<Config, String> {
+    /// into a corresponding Command Dispatcher.
+    pub fn parse(self, input: Vec<String>) -> Result<CmdDispatcher, String> {
         let mut cm = Config::new();
 
         // set defaults
@@ -160,12 +202,6 @@ impl Cmd {
             cm.insert(pair.0, pair.1);
         }
 
-        Ok(cm)
-    }
-
-    /// dispatch accepts a config as an argument to be passed on to the
-    /// commands contained handler method.
-    pub fn dispatch(&self, conf: Config) -> Result<u32, String> {
-        (self.handler_func)(conf)
+        Ok(CmdDispatcher::new(cm, self.handler_func))
     }
 }
