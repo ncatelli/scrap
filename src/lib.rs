@@ -4,10 +4,11 @@ use crate::parsers::ArgumentParser;
 use parcel::join;
 use parcel::MatchStatus;
 use parcel::Parser;
-use parcel::{one_of, one_or_more}; // parcel parser combinators
+use parcel::{one_of, zero_or_more}; // parcel parser combinators
 use std::collections::HashMap;
 use std::default;
 use std::fmt;
+use std::path::Path;
 
 mod flag;
 mod parsers;
@@ -178,11 +179,13 @@ impl Cmd {
 
         let config_pairs = match join(
             match_value_type(ValueType::Str),
-            one_or_more(one_of(self.flags.clone())),
+            zero_or_more(one_of(self.flags.clone())),
         )
         .parse(&res)?
         {
-            MatchStatus::Match((remainder, (_, res))) => {
+            MatchStatus::Match((remainder, (Value::Str(cmd), res)))
+                if Path::new(&cmd).ends_with(&self.name) =>
+            {
                 let unparsed_flags: Vec<&String> = remainder
                     .iter()
                     .map(|fov| match fov {
@@ -197,6 +200,9 @@ impl Cmd {
                 } else {
                     Ok(res)
                 }
+            }
+            MatchStatus::Match((_, (cmd, _))) => {
+                Err(format!("command doesn't match expected value: {:?}", cmd))
             }
             MatchStatus::NoMatch(remainder) => {
                 Err(format!("unable to parse full arg string: {:?}", remainder))

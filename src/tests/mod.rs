@@ -169,3 +169,59 @@ fn should_dispatch() {
             .dispatch()
     );
 }
+
+#[test]
+fn should_only_match_expected_command() {
+    let input = to_string_vec!(vec!["notexample", "--version"]);
+
+    assert!(Cmd::new()
+        .name("example")
+        .description("this is a test")
+        .author("John Doe <jdoe@example.com>")
+        .version("1.2.3")
+        .flag(
+            Flag::new()
+                .name("version")
+                .short_code("v")
+                .action(Action::StoreTrue)
+                .value_type(ValueType::Bool)
+        )
+        .flag(
+            Flag::new()
+                .name("size")
+                .short_code("s")
+                .action(Action::ExpectSingleValue)
+                .value_type(ValueType::Integer)
+                .default_value(Value::Integer(1024))
+        )
+        .parse(input)
+        .is_err());
+}
+
+#[test]
+fn should_match_command_with_path_prefix() {
+    let input = to_string_vec!(vec!["/usr/bin/example", "--version"]);
+
+    assert!(Cmd::new()
+        .name("example")
+        .description("this is a test")
+        .author("John Doe <jdoe@example.com>")
+        .version("1.2.3")
+        .flag(
+            Flag::new()
+                .name("version")
+                .short_code("v")
+                .action(Action::StoreTrue)
+                .value_type(ValueType::Bool)
+        )
+        .flag(
+            Flag::new()
+                .name("size")
+                .short_code("s")
+                .action(Action::ExpectSingleValue)
+                .value_type(ValueType::Integer)
+                .default_value(Value::Integer(1024))
+        )
+        .parse(input)
+        .is_ok());
+}
