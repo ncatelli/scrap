@@ -144,7 +144,7 @@ impl default::Default for Cmd {
             description: String::new(),
             version: String::new(),
             flags: Vec::new(),
-            handler_func: Box::new(|_conf| Err("Unimplemented".to_string())),
+            handler_func: Box::new(|_| Err("Unimplemented".to_string())),
         }
     }
 }
