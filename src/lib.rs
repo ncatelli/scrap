@@ -66,7 +66,7 @@ impl PartialEq for CmdDispatcher {
     }
 }
 
-/// Cmd functions as the top level wrapper for a command command line tool
+/// Cmd functions as the top level wrapper for a command line tool
 /// storing information about the tool, author, version and a brief description.
 pub struct Cmd {
     name: String,
