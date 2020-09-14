@@ -1,6 +1,6 @@
 use crate::flag::{Flag, FlagOrValue, Value, ValueType};
-use crate::parsers::match_value_type;
 use crate::parsers::ArgumentParser;
+use crate::parsers::{match_any_flag, match_value_type};
 use parcel::{join, one_of, zero_or_more}; // parcel parser combinators
 use parcel::{MatchStatus, ParseResult, Parser};
 use std::collections::HashMap;
@@ -215,11 +215,36 @@ impl Cmd {
     }
 }
 
-impl<'a> Parser<'a, &'a [FlagOrValue], (String, Value)> for Cmd {
-    fn parse(
-        &self,
-        input: &'a [FlagOrValue],
-    ) -> ParseResult<'a, &'a [FlagOrValue], (String, Value)> {
-        Ok(MatchStatus::NoMatch(input))
+impl<'a> Parser<'a, &'a [FlagOrValue], Config> for Cmd {
+    fn parse(&self, input: &'a [FlagOrValue]) -> ParseResult<'a, &'a [FlagOrValue], Config> {
+        let mut cm = Config::new();
+
+        let (remainder, config_pairing) = match join(
+            match_value_type(ValueType::Str),
+            zero_or_more(one_of(self.flags.clone())),
+        )
+        .parse(input)?
+        {
+            MatchStatus::Match((remainder, (Value::Str(cmd), res)))
+                if Path::new(&cmd).ends_with(&self.name) =>
+            {
+                match match_any_flag().parse(remainder)? {
+                    MatchStatus::Match((remaining_fov, _)) => {
+                        Err(format!("unable to parse all flags: {:?}", remaining_fov))
+                    }
+                    MatchStatus::NoMatch(remaining_fov) => Ok((remaining_fov, res)),
+                }
+            }
+            MatchStatus::Match((_, (cmd, _))) => {
+                Err(format!("command doesn't match expected value: {:?}", cmd))
+            }
+            MatchStatus::NoMatch(remainder) => Err(format!("unable to parse: {:?}", remainder)),
+        }?;
+
+        for (k, v) in config_pairing.into_iter() {
+            cm.insert(k, v);
+        }
+
+        Ok(MatchStatus::Match((remainder, cm)))
     }
 }
