@@ -55,7 +55,7 @@ fn should_parse_raw_input_vec_to_config() {
                     .action(Action::ExpectSingleValue)
                     .value_type(ValueType::Integer)
             )
-            .parse(input)
+            .run(input)
             .unwrap()
             .to_config()
     );
@@ -90,7 +90,7 @@ fn should_set_default_values_on_unprovided_values() {
                     .value_type(ValueType::Integer)
                     .default_value(Value::Integer(1024))
             )
-            .parse(input)
+            .run(input)
             .unwrap()
             .to_config()
     );
@@ -114,7 +114,7 @@ fn should_ignore_invalid_flags() {
                     .action(Action::StoreTrue)
                     .value_type(ValueType::Bool)
             )
-            .parse(input)
+            .run(input)
     );
 }
 
@@ -139,7 +139,7 @@ fn should_accept_dispatch_handler() {
                     .value_type(ValueType::Bool)
             )
             .handler(Box::new(|_| Ok(0)))
-            .parse(input)
+            .run(input)
             .unwrap()
             .to_config()
     );
@@ -164,7 +164,7 @@ fn should_dispatch() {
                     .value_type(ValueType::Bool)
             )
             .handler(Box::new(|_| Ok(0)))
-            .parse(input)
+            .run(input)
             .unwrap()
             .dispatch()
     );
@@ -194,7 +194,7 @@ fn should_only_match_expected_command() {
                 .value_type(ValueType::Integer)
                 .default_value(Value::Integer(1024))
         )
-        .parse(input)
+        .run(input)
         .is_err());
 }
 
@@ -222,6 +222,6 @@ fn should_match_command_with_path_prefix() {
                 .value_type(ValueType::Integer)
                 .default_value(Value::Integer(1024))
         )
-        .parse(input)
+        .run(input)
         .is_ok());
 }

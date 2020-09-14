@@ -1,10 +1,8 @@
 use crate::flag::{Flag, FlagOrValue, Value, ValueType};
 use crate::parsers::match_value_type;
 use crate::parsers::ArgumentParser;
-use parcel::join;
-use parcel::MatchStatus;
-use parcel::Parser;
-use parcel::{one_of, zero_or_more}; // parcel parser combinators
+use parcel::{join, one_of, zero_or_more}; // parcel parser combinators
+use parcel::{MatchStatus, ParseResult, Parser};
 use std::collections::HashMap;
 use std::default;
 use std::fmt;
@@ -164,10 +162,10 @@ impl default::Default for Cmd {
 }
 
 impl Cmd {
-    /// parse expects a Vec<String> representing all argumets provided from
+    /// run expects a Vec<String> representing all argumets provided from
     /// std::env::Args, including the base command and attempts to parse it
     /// into a corresponding Command Dispatcher.
-    pub fn parse(self, input: Vec<String>) -> Result<CmdDispatcher, String> {
+    pub fn run(self, input: Vec<String>) -> Result<CmdDispatcher, String> {
         let mut cm = config_from_defaults(&self.flags);
 
         let res = match ArgumentParser::new().parse(input)? {
@@ -214,5 +212,14 @@ impl Cmd {
         }
 
         Ok(CmdDispatcher::new(cm, self.handler_func))
+    }
+}
+
+impl<'a> Parser<'a, &'a [FlagOrValue], (String, Value)> for Cmd {
+    fn parse(
+        &self,
+        input: &'a [FlagOrValue],
+    ) -> ParseResult<'a, &'a [FlagOrValue], (String, Value)> {
+        Ok(MatchStatus::NoMatch(input))
     }
 }
