@@ -1,6 +1,3 @@
-use crate::flag::{Flag, FlagOrValue, Value, ValueType};
-use crate::parsers::ArgumentParser;
-use crate::parsers::{match_any_flag, match_value_type};
 use parcel::{join, one_of, zero_or_more}; // parcel parser combinators
 use parcel::{MatchStatus, ParseResult, Parser};
 use std::collections::HashMap;
@@ -8,8 +5,12 @@ use std::default;
 use std::fmt;
 use std::path::Path;
 
-mod flag;
+pub mod flag;
+use flag::{Flag, FlagOrValue, Value, ValueType};
+
 mod parsers;
+use parsers::ArgumentParser;
+use parsers::{match_any_flag, match_value_type};
 
 #[cfg(test)]
 mod tests;
@@ -166,8 +167,6 @@ impl Cmd {
     /// std::env::Args, including the base command and attempts to parse it
     /// into a corresponding Command Dispatcher.
     pub fn run(self, input: Vec<String>) -> Result<CmdDispatcher, String> {
-        let mut cm = config_from_defaults(&self.flags);
-
         let res = match ArgumentParser::new().parse(input)? {
             MatchStatus::Match((_, res)) => Ok(res),
             MatchStatus::NoMatch(remainder) => {
@@ -175,41 +174,11 @@ impl Cmd {
             }
         }?;
 
-        let config_pairs = match join(
-            match_value_type(ValueType::Str),
-            zero_or_more(one_of(self.flags.clone())),
-        )
-        .parse(&res)?
-        {
-            MatchStatus::Match((remainder, (Value::Str(cmd), res)))
-                if Path::new(&cmd).ends_with(&self.name) =>
-            {
-                let unparsed_flags: Vec<&String> = remainder
-                    .iter()
-                    .map(|fov| match fov {
-                        FlagOrValue::Flag(f) => Ok(f),
-                        _ => Err(()),
-                    })
-                    .filter_map(|f| f.ok())
-                    .collect();
-
-                if !unparsed_flags.is_empty() {
-                    Err(format!("unable to parse all flags: {:?}", unparsed_flags))
-                } else {
-                    Ok(res)
-                }
-            }
-            MatchStatus::Match((_, (cmd, _))) => {
-                Err(format!("command doesn't match expected value: {:?}", cmd))
-            }
-            MatchStatus::NoMatch(remainder) => {
-                Err(format!("unable to parse full arg string: {:?}", remainder))
-            }
-        }?;
-
-        for pair in config_pairs.into_iter() {
-            cm.insert(pair.0, pair.1);
-        }
+        let mut cm = config_from_defaults(&self.flags);
+        cm.extend(match self.parse(&res)? {
+            MatchStatus::Match((_, conf)) => Ok(conf),
+            _ => Err("unimplemented"),
+        }?);
 
         Ok(CmdDispatcher::new(cm, self.handler_func))
     }
@@ -229,8 +198,8 @@ impl<'a> Parser<'a, &'a [FlagOrValue], Config> for Cmd {
                 if Path::new(&cmd).ends_with(&self.name) =>
             {
                 match match_any_flag().parse(remainder)? {
-                    MatchStatus::Match((remaining_fov, _)) => {
-                        Err(format!("unable to parse all flags: {:?}", remaining_fov))
+                    MatchStatus::Match((_remaining_fov, _)) => {
+                        Err("unable to parse all flags".to_string())
                     }
                     MatchStatus::NoMatch(remaining_fov) => Ok((remaining_fov, res)),
                 }

@@ -15,6 +15,22 @@ pub enum FlagOrValue {
     Value(Value),
 }
 
+impl fmt::Display for FlagOrValue {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Flag(f) => {
+                let flag = if f.len() > 1 {
+                    format!("--{}", f)
+                } else {
+                    format!("-{}", f)
+                };
+                formatter.write_str(&flag)
+            }
+            Self::Value(v) => formatter.write_fmt(format_args!("{}", v)),
+        }
+    }
+}
+
 /// ValueType represents one of the values that can be assigned to a flag.
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum ValueType {
@@ -32,6 +48,17 @@ pub enum Value {
     Bool(bool),
     Integer(u64),
     Float(f64),
+}
+
+impl fmt::Display for Value {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Str(s) => formatter.write_str(s),
+            Self::Bool(b) => formatter.write_fmt(format_args!("{}", b)),
+            Self::Integer(i) => formatter.write_fmt(format_args!("{}", i)),
+            Self::Float(f) => formatter.write_fmt(format_args!("{}", f)),
+        }
+    }
 }
 
 /// Action stores the flag action, signifying the behavior of the flag.
