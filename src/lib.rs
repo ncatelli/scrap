@@ -79,8 +79,8 @@ impl PartialEq for CmdDispatcher {
     }
 }
 
-/// Cmd functions as the top level wrapper for a command line tool
-/// storing information about the tool, author, version and a brief description.
+/// Cmd functions as the wrapper for a command line tool storing information
+/// about the tool, author, version and a brief description.
 pub struct Cmd {
     name: String,
     author: String,
@@ -88,6 +88,7 @@ pub struct Cmd {
     version: String,
     flags: Vec<Flag>,
     handler_func: Box<DispatchFn>,
+    subcommands: Vec<Cmd>,
 }
 
 impl Cmd {
@@ -130,6 +131,12 @@ impl Cmd {
         self.handler_func = handler;
         self
     }
+
+    /// add a subcommand.
+    pub fn command(mut self, sc: Cmd) -> Cmd {
+        self.subcommands.push(sc);
+        self
+    }
 }
 
 impl fmt::Display for Cmd {
@@ -158,6 +165,7 @@ impl default::Default for Cmd {
             version: String::new(),
             flags: Vec::new(),
             handler_func: Box::new(|_| Err("Unimplemented".to_string())),
+            subcommands: Vec::new(),
         }
     }
 }
