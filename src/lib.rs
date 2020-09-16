@@ -195,19 +195,18 @@ impl Cmd {
         let mut cm = config_from_defaults(&self.flags);
         let mut remainder: &[FlagOrValue] = &ap_res;
         loop {
-            match self.parse(remainder) {
-                Ok(MatchStatus::Match((rem, conf))) if rem.is_empty() => {
+            match self.parse(remainder)? {
+                MatchStatus::Match((rem, conf)) if rem.is_empty() => {
                     cm.extend(conf);
                     break;
                 }
-                Ok(MatchStatus::Match((rem, conf))) => {
+                MatchStatus::Match((rem, conf)) => {
                     remainder = rem;
                     cm.extend(conf);
                 }
-                Ok(MatchStatus::NoMatch(rem)) => {
+                MatchStatus::NoMatch(rem) => {
                     return Err(format!("unable to parse full arg string: {:?}", rem))
                 }
-                Err(e) => return Err(e),
             }
         }
 
