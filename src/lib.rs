@@ -103,6 +103,48 @@ impl CmdGroup {
         }
     }
 
+    /// Set the command name.
+    pub fn name(mut self, name: &str) -> Self {
+        self.command.name = name.to_string();
+        self
+    }
+
+    /// Set the author name.
+    pub fn author(mut self, author: &str) -> Self {
+        self.command.author = author.to_string();
+        self
+    }
+
+    /// Set the short description.
+    pub fn description(mut self, desc: &str) -> Self {
+        self.command.description = desc.to_string();
+        self
+    }
+
+    /// Set the version.
+    pub fn version(mut self, vers: &str) -> Self {
+        self.command.version = vers.to_string();
+        self
+    }
+
+    /// Set a flag.
+    pub fn flag(mut self, f: Flag) -> Self {
+        self.command.flags.push(f);
+        self
+    }
+
+    /// Set a cmd handler.
+    pub fn handler(mut self, handler: Box<DispatchFn>) -> Self {
+        self.command.handler_func = handler;
+        self
+    }
+
+    /// add a subcommand to the CmdGroup
+    pub fn subcommand(mut self, sc: Cmd) -> Self {
+        self.subcommands.push(sc);
+        self
+    }
+
     pub fn flatten(self) -> Vec<Cmd> {
         let mut cv: Vec<Cmd> = vec![self.command];
         cv.extend(self.subcommands.into_iter());
@@ -168,37 +210,37 @@ impl Cmd {
     }
 
     /// Set the command name.
-    pub fn name(mut self, name: &str) -> Cmd {
+    pub fn name(mut self, name: &str) -> Self {
         self.name = name.to_string();
         self
     }
 
     /// Set the author name.
-    pub fn author(mut self, author: &str) -> Cmd {
+    pub fn author(mut self, author: &str) -> Self {
         self.author = author.to_string();
         self
     }
 
     /// Set the short description.
-    pub fn description(mut self, desc: &str) -> Cmd {
+    pub fn description(mut self, desc: &str) -> Self {
         self.description = desc.to_string();
         self
     }
 
     /// Set the version.
-    pub fn version(mut self, vers: &str) -> Cmd {
+    pub fn version(mut self, vers: &str) -> Self {
         self.version = vers.to_string();
         self
     }
 
     /// Set a flag.
-    pub fn flag(mut self, f: Flag) -> Cmd {
+    pub fn flag(mut self, f: Flag) -> Self {
         self.flags.push(f);
         self
     }
 
     /// Set a cmd handler.
-    pub fn handler(mut self, handler: Box<DispatchFn>) -> Cmd {
+    pub fn handler(mut self, handler: Box<DispatchFn>) -> Self {
         self.handler_func = handler;
         self
     }
