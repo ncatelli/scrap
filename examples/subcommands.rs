@@ -7,7 +7,7 @@ fn main() {
     let args: Vec<String> = env::args().into_iter().collect();
 
     let res = Cmd::new()
-        .name("basic")
+        .name("subcommands")
         .description("this is a test")
         .author("John Doe <jdoe@example.com>")
         .version("1.2.3")
