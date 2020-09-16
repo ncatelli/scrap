@@ -42,7 +42,7 @@ fn config_from_defaults(flags: &[Flag]) -> Config {
 }
 
 /// Represents the result of a dispatch function call.
-pub type DispatchFnResult = Result<u32, String>;
+pub type DispatchFnResult = Result<i32, String>;
 
 /// DispatchFn stores an invocable function to be called by the cli
 pub type DispatchFn = dyn Fn(Config) -> DispatchFnResult;
@@ -69,7 +69,7 @@ impl CmdDispatcher {
 
     /// dispatch accepts a config as an argument to be passed on to the
     /// commands contained handler method.
-    pub fn dispatch(self) -> Result<u32, String> {
+    pub fn dispatch(self) -> Result<i32, String> {
         (self.handler_func)(self.config)
     }
 }
@@ -183,8 +183,11 @@ impl CmdGroup {
                     remainder = rem;
                     cm.extend(conf);
                 }
-                MatchStatus::NoMatch(rem) => {
+                MatchStatus::NoMatch(rem) if rem.is_empty() => {
                     return Err(format!("unable to parse full arg string: {:?}", rem))
+                }
+                MatchStatus::NoMatch(rem) => {
+                    remainder = rem;
                 }
             }
         }

@@ -232,3 +232,22 @@ fn should_match_subcommand() {
             .dispatch()
     );
 }
+
+#[test]
+fn should_match_correct_subcommand_when_multiple_are_configured() {
+    let input = to_string_vec!(vec!["/usr/bin/example", "run"]);
+
+    assert_eq!(
+        Ok(1),
+        Cmd::new()
+            .name("example")
+            .description("this is a test")
+            .author("John Doe <jdoe@example.com>")
+            .version("1.2.3")
+            .subcommand(Cmd::new().name("test").handler(Box::new(|_| Ok(0))))
+            .subcommand(Cmd::new().name("run").handler(Box::new(|_| Ok(1))))
+            .run(input)
+            .unwrap()
+            .dispatch()
+    );
+}
