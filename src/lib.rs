@@ -89,6 +89,68 @@ impl PartialEq for CmdDispatcher {
     }
 }
 
+/// CmdGroup provides a group of a root cmd and child subcommands.
+pub struct CmdGroup {
+    command: Cmd,
+    subcommands: Vec<Cmd>,
+}
+
+impl CmdGroup {
+    pub fn new(cmd: Cmd) -> Self {
+        Self {
+            command: cmd,
+            subcommands: Vec::new(),
+        }
+    }
+
+    pub fn flatten(self) -> Vec<Cmd> {
+        let mut cv: Vec<Cmd> = vec![self.command];
+        cv.extend(self.subcommands.into_iter());
+        cv
+    }
+}
+
+impl fmt::Display for CmdGroup {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", &self.command)
+    }
+}
+
+impl CmdGroup {
+    /// run expects a Vec<String> representing all argumets provided from
+    /// std::env::Args, including the base command and attempts to parse it
+    /// into a corresponding Command Dispatcher.
+    pub fn run(self, input: Vec<String>) -> Result<CmdDispatcher, String> {
+        let ap_res = match ArgumentParser::new().parse(input)? {
+            MatchStatus::Match((_, res)) => Ok(res),
+            MatchStatus::NoMatch(remainder) => {
+                Err(format!("unable to parse full arg string: {:?}", remainder))
+            }
+        }?;
+
+        let mut cm = config_from_defaults(&self.command.flags);
+        let mut remainder: &[FlagOrValue] = &ap_res;
+
+        for cmd in self.flatten().into_iter() {
+            match cmd.parse(remainder)? {
+                MatchStatus::Match((rem, conf)) if rem.is_empty() => {
+                    cm.extend(conf);
+                    return Ok(CmdDispatcher::new(cm, cmd.handler_func));
+                }
+                MatchStatus::Match((rem, conf)) => {
+                    remainder = rem;
+                    cm.extend(conf);
+                }
+                MatchStatus::NoMatch(rem) => {
+                    return Err(format!("unable to parse full arg string: {:?}", rem))
+                }
+            }
+        }
+
+        return Err(format!("unable to parse full arg string: {:?}", remainder));
+    }
+}
+
 /// Cmd functions as the wrapper for a command line tool storing information
 /// about the tool, author, version and a brief description.
 pub struct Cmd {
@@ -98,7 +160,6 @@ pub struct Cmd {
     version: String,
     flags: Vec<Flag>,
     handler_func: Box<DispatchFn>,
-    subcommands: Vec<Cmd>,
 }
 
 impl Cmd {
@@ -142,10 +203,11 @@ impl Cmd {
         self
     }
 
-    /// add a subcommand.
-    pub fn command(mut self, sc: Cmd) -> Cmd {
-        self.subcommands.push(sc);
-        self
+    /// add a subcommand, implicily converting to a CmdGroup.
+    pub fn command(self, sc: Cmd) -> CmdGroup {
+        let mut cg = CmdGroup::new(self);
+        cg.subcommands.push(sc);
+        cg
     }
 }
 
@@ -175,42 +237,15 @@ impl default::Default for Cmd {
             version: String::new(),
             flags: Vec::new(),
             handler_func: Box::new(|_| Err("Unimplemented".to_string())),
-            subcommands: Vec::new(),
         }
     }
 }
 
 impl Cmd {
-    /// run expects a Vec<String> representing all argumets provided from
-    /// std::env::Args, including the base command and attempts to parse it
-    /// into a corresponding Command Dispatcher.
+    /// Run Converts the command to a CmdGroup node in the cli and then calls
+    /// that types corresponding run method.
     pub fn run(self, input: Vec<String>) -> Result<CmdDispatcher, String> {
-        let ap_res = match ArgumentParser::new().parse(input)? {
-            MatchStatus::Match((_, res)) => Ok(res),
-            MatchStatus::NoMatch(remainder) => {
-                Err(format!("unable to parse full arg string: {:?}", remainder))
-            }
-        }?;
-
-        let mut cm = config_from_defaults(&self.flags);
-        let mut remainder: &[FlagOrValue] = &ap_res;
-        loop {
-            match self.parse(remainder)? {
-                MatchStatus::Match((rem, conf)) if rem.is_empty() => {
-                    cm.extend(conf);
-                    break;
-                }
-                MatchStatus::Match((rem, conf)) => {
-                    remainder = rem;
-                    cm.extend(conf);
-                }
-                MatchStatus::NoMatch(rem) => {
-                    return Err(format!("unable to parse full arg string: {:?}", rem))
-                }
-            }
-        }
-
-        Ok(CmdDispatcher::new(cm, self.handler_func))
+        CmdGroup::new(self).run(input)
     }
 }
 
