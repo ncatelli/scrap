@@ -215,7 +215,6 @@ fn should_match_command_with_path_prefix() {
         .run(input)
         .is_ok());
 }
-#[ignore]
 #[test]
 fn should_match_subcommand() {
     let input = to_string_vec!(vec!["/usr/bin/example", "run"]);
@@ -227,7 +226,7 @@ fn should_match_subcommand() {
             .description("this is a test")
             .author("John Doe <jdoe@example.com>")
             .version("1.2.3")
-            .command(Cmd::new().name("run").handler(Box::new(|_| Ok(0))))
+            .subcommand(Cmd::new().name("run").handler(Box::new(|_| Ok(0))))
             .run(input)
             .unwrap()
             .dispatch()

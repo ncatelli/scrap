@@ -204,7 +204,7 @@ impl Cmd {
     }
 
     /// add a subcommand, implicily converting to a CmdGroup.
-    pub fn command(self, sc: Cmd) -> CmdGroup {
+    pub fn subcommand(self, sc: Cmd) -> CmdGroup {
         let mut cg = CmdGroup::new(self);
         cg.subcommands.push(sc);
         cg
