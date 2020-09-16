@@ -194,9 +194,21 @@ impl Cmd {
 
         let mut cm = config_from_defaults(&self.flags);
         let mut remainder: &[FlagOrValue] = &ap_res;
-        while let MatchStatus::Match((rem, conf)) = self.parse(remainder)? {
-            remainder = rem;
-            cm.extend(conf);
+        loop {
+            match self.parse(remainder) {
+                Ok(MatchStatus::Match((rem, conf))) if rem.is_empty() => {
+                    cm.extend(conf);
+                    break;
+                }
+                Ok(MatchStatus::Match((rem, conf))) => {
+                    remainder = rem;
+                    cm.extend(conf);
+                }
+                Ok(MatchStatus::NoMatch(rem)) => {
+                    return Err(format!("unable to parse full arg string: {:?}", rem))
+                }
+                Err(e) => return Err(e),
+            }
         }
 
         Ok(CmdDispatcher::new(cm, self.handler_func))
@@ -205,6 +217,7 @@ impl Cmd {
 
 impl<'a> Parser<'a, &'a [FlagOrValue], Config> for Cmd {
     fn parse(&self, input: &'a [FlagOrValue]) -> ParseResult<'a, &'a [FlagOrValue], Config> {
+        let preparse_input = input;
         match join(
             match_value_type(ValueType::Str),
             zero_or_more(one_of(self.flags.clone())),
@@ -224,13 +237,11 @@ impl<'a> Parser<'a, &'a [FlagOrValue], Config> for Cmd {
                     ))),
                 }
             }
-            MatchStatus::Match((_, (cmd, _))) => {
-                Err(format!("command doesn't match expected value: {:?}", cmd))
-            }
+            MatchStatus::Match(_) => Ok(MatchStatus::NoMatch(preparse_input)),
             MatchStatus::NoMatch(remaining_fov) if remaining_fov.is_empty() => {
                 Ok(MatchStatus::NoMatch(remaining_fov))
             }
-            MatchStatus::NoMatch(remainder) => Err(format!("unable to parse: {:?}", remainder)),
+            MatchStatus::NoMatch(remaining_fov) => Ok(MatchStatus::NoMatch(remaining_fov)),
         }
     }
 }

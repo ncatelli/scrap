@@ -169,7 +169,7 @@ fn should_dispatch() {
 }
 
 #[test]
-fn should_only_match_expected_command() {
+fn should_throw_an_error_if_command_name_does_not_match_input_value() {
     let input = to_string_vec!(vec!["notexample", "--version"]);
 
     assert!(Cmd::new()
@@ -184,16 +184,8 @@ fn should_only_match_expected_command() {
                 .action(Action::StoreTrue)
                 .value_type(ValueType::Bool)
         )
-        .flag(
-            Flag::new()
-                .name("size")
-                .short_code("s")
-                .action(Action::ExpectSingleValue)
-                .value_type(ValueType::Integer)
-                .default_value(Value::Integer(1024))
-        )
         .run(input)
-        .is_err());
+        .is_err())
 }
 
 #[test]
