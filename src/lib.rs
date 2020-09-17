@@ -51,13 +51,15 @@ pub type DispatchFn = dyn Fn(Config) -> DispatchFnResult;
 /// commands.
 pub struct CmdDispatcher {
     pub config: Config,
+    pub help_string: String,
     pub handler_func: Box<DispatchFn>,
 }
 
 impl CmdDispatcher {
-    pub fn new(config: Config, handler_func: Box<DispatchFn>) -> Self {
+    pub fn new(config: Config, help_string: String, handler_func: Box<DispatchFn>) -> Self {
         CmdDispatcher {
             config,
+            help_string,
             handler_func,
         }
     }
@@ -71,10 +73,11 @@ impl CmdDispatcher {
     /// commands contained handler method.
     pub fn dispatch(self) -> Result<i32, String> {
         if Some(&Value::Bool(true)) == self.config.get("help") {
-            println!("help string")
+            println!("{}", self.help_string);
+            Ok(0)
+        } else {
+            (self.handler_func)(self.config)
         }
-
-        (self.handler_func)(self.config)
     }
 }
 
@@ -181,7 +184,11 @@ impl CmdGroup {
             match cmd.parse(remainder)? {
                 MatchStatus::Match((rem, conf)) if rem.is_empty() => {
                     cm.extend(conf);
-                    return Ok(CmdDispatcher::new(cm, cmd.handler_func));
+                    return Ok(CmdDispatcher::new(
+                        cm,
+                        format!("{}", &cmd),
+                        cmd.handler_func,
+                    ));
                 }
                 MatchStatus::Match((rem, conf)) => {
                     remainder = rem;
