@@ -108,9 +108,14 @@ impl Flag {
     }
 
     /// Set the action field.
-    pub fn action(mut self, action: Action) -> Flag {
-        self.action = action;
-        self
+    pub fn action(self, action: Action) -> Flag {
+        let mut f: Flag = match action {
+            Action::StoreFalse => self.default_value(Value::Bool(true)),
+            Action::StoreTrue => self.default_value(Value::Bool(false)),
+            _ => self,
+        };
+        f.action = action;
+        f
     }
 
     /// Set the action field.
