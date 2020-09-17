@@ -10,6 +10,15 @@ pub fn match_flag<'a>(expected: Flag) -> impl Parser<'a, &'a [FlagOrValue], Flag
     }
 }
 
+pub fn match_any_flag<'a>() -> impl Parser<'a, &'a [FlagOrValue], Flag> {
+    move |input: &'a [FlagOrValue]| match input.get(0) {
+        Some(FlagOrValue::Flag(name)) => {
+            Ok(MatchStatus::Match((&input[1..], Flag::new().name(name))))
+        }
+        _ => Ok(MatchStatus::NoMatch(input)),
+    }
+}
+
 pub fn match_value_type<'a>(expected: ValueType) -> impl Parser<'a, &'a [FlagOrValue], Value> {
     move |input: &'a [FlagOrValue]| match (expected, input.get(0)) {
         (ValueType::Any, Some(FlagOrValue::Value(v))) => {

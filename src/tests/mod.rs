@@ -31,6 +31,7 @@ fn should_match_expected_help_message() {
 fn should_parse_raw_input_vec_to_config() {
     let input = to_string_vec!(vec!["example", "--version", "-s", "1024"]);
     let mut expected_config = Config::new();
+    expected_config.insert("help".to_string(), Value::Bool(false));
     expected_config.insert("version".to_string(), Value::Bool(true));
     expected_config.insert("size".to_string(), Value::Integer(1024));
 
@@ -55,7 +56,7 @@ fn should_parse_raw_input_vec_to_config() {
                     .action(Action::ExpectSingleValue)
                     .value_type(ValueType::Integer)
             )
-            .parse(input)
+            .run(input)
             .unwrap()
             .to_config()
     );
@@ -65,6 +66,7 @@ fn should_parse_raw_input_vec_to_config() {
 fn should_set_default_values_on_unprovided_values() {
     let input = to_string_vec!(vec!["example", "--version"]);
     let mut expected_config = Config::new();
+    expected_config.insert("help".to_string(), Value::Bool(false));
     expected_config.insert("version".to_string(), Value::Bool(true));
     expected_config.insert("size".to_string(), Value::Integer(1024));
 
@@ -90,7 +92,7 @@ fn should_set_default_values_on_unprovided_values() {
                     .value_type(ValueType::Integer)
                     .default_value(Value::Integer(1024))
             )
-            .parse(input)
+            .run(input)
             .unwrap()
             .to_config()
     );
@@ -100,22 +102,20 @@ fn should_set_default_values_on_unprovided_values() {
 fn should_ignore_invalid_flags() {
     let input = to_string_vec!(vec!["example", "--version", "-s", "1024"]);
 
-    assert_eq!(
-        Err("unable to parse all flags: [\"s\"]".to_string()),
-        Cmd::new()
-            .name("example")
-            .description("this is a test")
-            .author("John Doe <jdoe@example.com>")
-            .version("1.2.3")
-            .flag(
-                Flag::new()
-                    .name("version")
-                    .short_code("v")
-                    .action(Action::StoreTrue)
-                    .value_type(ValueType::Bool)
-            )
-            .parse(input)
-    );
+    assert!(Cmd::new()
+        .name("example")
+        .description("this is a test")
+        .author("John Doe <jdoe@example.com>")
+        .version("1.2.3")
+        .flag(
+            Flag::new()
+                .name("version")
+                .short_code("v")
+                .action(Action::StoreTrue)
+                .value_type(ValueType::Bool)
+        )
+        .run(input)
+        .is_err());
 }
 
 #[test]
@@ -123,6 +123,7 @@ fn should_accept_dispatch_handler() {
     let input = to_string_vec!(vec!["example", "--version"]);
     let mut expected_config = Config::new();
     expected_config.insert("version".to_string(), Value::Bool(true));
+    expected_config.insert("help".to_string(), Value::Bool(false));
 
     assert_eq!(
         expected_config,
@@ -139,7 +140,7 @@ fn should_accept_dispatch_handler() {
                     .value_type(ValueType::Bool)
             )
             .handler(Box::new(|_| Ok(0)))
-            .parse(input)
+            .run(input)
             .unwrap()
             .to_config()
     );
@@ -164,14 +165,14 @@ fn should_dispatch() {
                     .value_type(ValueType::Bool)
             )
             .handler(Box::new(|_| Ok(0)))
-            .parse(input)
+            .run(input)
             .unwrap()
             .dispatch()
     );
 }
 
 #[test]
-fn should_only_match_expected_command() {
+fn should_throw_an_error_if_command_name_does_not_match_input_value() {
     let input = to_string_vec!(vec!["notexample", "--version"]);
 
     assert!(Cmd::new()
@@ -186,16 +187,8 @@ fn should_only_match_expected_command() {
                 .action(Action::StoreTrue)
                 .value_type(ValueType::Bool)
         )
-        .flag(
-            Flag::new()
-                .name("size")
-                .short_code("s")
-                .action(Action::ExpectSingleValue)
-                .value_type(ValueType::Integer)
-                .default_value(Value::Integer(1024))
-        )
-        .parse(input)
-        .is_err());
+        .run(input)
+        .is_err())
 }
 
 #[test]
@@ -222,6 +215,42 @@ fn should_match_command_with_path_prefix() {
                 .value_type(ValueType::Integer)
                 .default_value(Value::Integer(1024))
         )
-        .parse(input)
+        .run(input)
         .is_ok());
+}
+#[test]
+fn should_match_subcommand() {
+    let input = to_string_vec!(vec!["/usr/bin/example", "run"]);
+
+    assert_eq!(
+        Ok(0),
+        Cmd::new()
+            .name("example")
+            .description("this is a test")
+            .author("John Doe <jdoe@example.com>")
+            .version("1.2.3")
+            .subcommand(Cmd::new().name("run").handler(Box::new(|_| Ok(0))))
+            .run(input)
+            .unwrap()
+            .dispatch()
+    );
+}
+
+#[test]
+fn should_match_correct_subcommand_when_multiple_are_configured() {
+    let input = to_string_vec!(vec!["/usr/bin/example", "run"]);
+
+    assert_eq!(
+        Ok(1),
+        Cmd::new()
+            .name("example")
+            .description("this is a test")
+            .author("John Doe <jdoe@example.com>")
+            .version("1.2.3")
+            .subcommand(Cmd::new().name("test").handler(Box::new(|_| Ok(0))))
+            .subcommand(Cmd::new().name("run").handler(Box::new(|_| Ok(1))))
+            .run(input)
+            .unwrap()
+            .dispatch()
+    );
 }
