@@ -1,5 +1,5 @@
 extern crate scrap;
-use scrap::flag::{Action, Flag, Value, ValueType};
+use scrap::flag::{Action, Flag, ValueType};
 use scrap::Cmd;
 use std::env;
 
@@ -16,8 +16,7 @@ fn main() {
                 .name("version")
                 .short_code("v")
                 .action(Action::StoreTrue)
-                .value_type(ValueType::Bool)
-                .default_value(Value::Bool(false)),
+                .value_type(ValueType::Bool),
         )
         .handler(Box::new(|c| {
             println!("root dispatched with config: {:?}", c);

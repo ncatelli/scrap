@@ -295,8 +295,7 @@ impl default::Default for Cmd {
                 .name("help")
                 .short_code("h")
                 .action(Action::StoreTrue)
-                .value_type(ValueType::Bool)
-                .default_value(Value::Bool(false))],
+                .value_type(ValueType::Bool)],
             handler_func: Box::new(|_| Err("Unimplemented".to_string())),
         }
     }
