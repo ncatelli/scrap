@@ -6,7 +6,7 @@ use std::fmt;
 use std::path::Path;
 
 pub mod flag;
-use flag::{Flag, FlagOrValue, Value, ValueType};
+use flag::{Action, Flag, FlagOrValue, Value, ValueType};
 
 mod parsers;
 use parsers::ArgumentParser;
@@ -70,6 +70,10 @@ impl CmdDispatcher {
     /// dispatch accepts a config as an argument to be passed on to the
     /// commands contained handler method.
     pub fn dispatch(self) -> Result<i32, String> {
+        if Some(&Value::Bool(true)) == self.config.get("help") {
+            println!("help string")
+        }
+
         (self.handler_func)(self.config)
     }
 }
@@ -280,7 +284,12 @@ impl default::Default for Cmd {
             author: String::new(),
             description: String::new(),
             version: String::new(),
-            flags: Vec::new(),
+            flags: vec![Flag::new()
+                .name("help")
+                .short_code("h")
+                .action(Action::StoreTrue)
+                .value_type(ValueType::Bool)
+                .default_value(Value::Bool(false))],
             handler_func: Box::new(|_| Err("Unimplemented".to_string())),
         }
     }

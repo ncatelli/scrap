@@ -31,6 +31,7 @@ fn should_match_expected_help_message() {
 fn should_parse_raw_input_vec_to_config() {
     let input = to_string_vec!(vec!["example", "--version", "-s", "1024"]);
     let mut expected_config = Config::new();
+    expected_config.insert("help".to_string(), Value::Bool(false));
     expected_config.insert("version".to_string(), Value::Bool(true));
     expected_config.insert("size".to_string(), Value::Integer(1024));
 
@@ -65,6 +66,7 @@ fn should_parse_raw_input_vec_to_config() {
 fn should_set_default_values_on_unprovided_values() {
     let input = to_string_vec!(vec!["example", "--version"]);
     let mut expected_config = Config::new();
+    expected_config.insert("help".to_string(), Value::Bool(false));
     expected_config.insert("version".to_string(), Value::Bool(true));
     expected_config.insert("size".to_string(), Value::Integer(1024));
 
@@ -121,6 +123,7 @@ fn should_accept_dispatch_handler() {
     let input = to_string_vec!(vec!["example", "--version"]);
     let mut expected_config = Config::new();
     expected_config.insert("version".to_string(), Value::Bool(true));
+    expected_config.insert("help".to_string(), Value::Bool(false));
 
     assert_eq!(
         expected_config,
