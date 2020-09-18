@@ -21,10 +21,15 @@ fn main() {
             println!("root dispatched with config: {:?}", c);
             Ok(0)
         }))
-        .subcommand(Cmd::new().name("run").handler(Box::new(|c| {
-            println!("run subcommand dispatched with config: {:?}", c);
-            Ok(0)
-        })))
+        .subcommand(
+            Cmd::new()
+                .name("run")
+                .description("execute an example subcommand")
+                .handler(Box::new(|c| {
+                    println!("run subcommand dispatched with config: {:?}", c);
+                    Ok(0)
+                })),
+        )
         .run(args)
         .unwrap()
         .dispatch();
