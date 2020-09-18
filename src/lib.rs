@@ -5,6 +5,8 @@ use std::default;
 use std::fmt;
 use std::path::Path;
 
+pub mod prelude;
+
 pub mod flag;
 use flag::{Action, Flag, FlagOrValue, Value, ValueType};
 

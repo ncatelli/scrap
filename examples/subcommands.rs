@@ -1,6 +1,5 @@
 extern crate scrap;
-use scrap::flag::{Action, Flag, ValueType};
-use scrap::Cmd;
+use scrap::prelude::v1::*;
 use std::env;
 
 fn main() {
