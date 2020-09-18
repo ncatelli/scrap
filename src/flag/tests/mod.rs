@@ -34,7 +34,7 @@ fn should_set_true_default_value_on_flag_with_storefalse_action() {
 #[test]
 fn should_generate_correct_help_message_based_off_passed_arguments() {
     assert_eq!(
-        "--version, -v: print command version",
+        "--version, -v       print command version",
         format!(
             "{}",
             Flag::new()
@@ -46,7 +46,7 @@ fn should_generate_correct_help_message_based_off_passed_arguments() {
     );
 
     assert_eq!(
-        "--version: print command version",
+        "--version           print command version",
         format!(
             "{}",
             Flag::new()
@@ -57,7 +57,7 @@ fn should_generate_correct_help_message_based_off_passed_arguments() {
     );
 
     assert_eq!(
-        "--version, -v",
+        "--version, -v       ",
         format!(
             "{}",
             Flag::new()

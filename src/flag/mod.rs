@@ -77,7 +77,7 @@ pub enum Action {
 pub struct Flag {
     pub name: String,
     pub short_code: String,
-    help_string: String,
+    pub help_string: String,
     action: Action,
     pub value_type: ValueType,
     pub default_value: Option<Value>,
@@ -139,11 +139,7 @@ impl fmt::Display for Flag {
             format_string.push_str(&format!(", -{}", &self.short_code))
         };
 
-        if !&self.help_string.is_empty() {
-            format_string.push_str(&format!(": {}", &self.help_string))
-        };
-
-        write!(f, "{}", &format_string)
+        write!(f, "{:<20}{}", &format_string, &self.help_string)
     }
 }
 

@@ -174,7 +174,16 @@ impl CmdGroup {
 
 impl fmt::Display for CmdGroup {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", &self.command)
+        write!(
+            f,
+            "{}\n\nSubcommands:\n{}",
+            &self.command,
+            self.subcommands
+                .iter()
+                .map(|f| format!("    {:<16}\t{}", f.name, f.description))
+                .collect::<Vec<String>>()
+                .join("\n")
+        )
     }
 }
 
@@ -192,14 +201,19 @@ impl CmdGroup {
 
         let mut cm = config_from_defaults(&self.command.flags);
         let mut remainder: &[FlagOrValue] = &ap_res;
+        let cmdgroup_help_string = format!("{}", &self);
 
-        for cmd in self.flatten().into_iter() {
+        for (offset, cmd) in self.flatten().into_iter().enumerate() {
             match cmd.parse(remainder)? {
                 MatchStatus::Match((rem, conf)) if rem.is_empty() => {
                     cm.extend(conf);
                     return Ok(CmdDispatcher::new(
                         cm,
-                        format!("{}", &cmd),
+                        if offset == 0 {
+                            format!("{}", &cmdgroup_help_string)
+                        } else {
+                            format!("{}", &cmd)
+                        },
                         cmd.handler_func,
                     ));
                 }
@@ -282,18 +296,29 @@ impl Cmd {
 
 impl fmt::Display for Cmd {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let desc = if !self.description.is_empty() {
-            format!("{}\n", &self.description)
-        } else {
-            "".to_string()
-        };
-        let name = if !self.name.is_empty() {
+        let name = if !&self.name.is_empty() {
             format!(" {} ", &self.name)
         } else {
             "".to_string()
         };
 
-        write!(f, "{}Usage:{}[OPTIONS] [SUBCOMMAND]", desc, name)
+        let desc = if !self.description.is_empty() {
+            format!("{}\n\n", &self.description)
+        } else {
+            "\n".to_string()
+        };
+
+        write!(
+            f,
+            "Usage:{}[OPTIONS]\n{}Flags:\n{}",
+            name,
+            desc,
+            self.flags
+                .iter()
+                .map(|f| format!("    {}", f))
+                .collect::<Vec<String>>()
+                .join("\n")
+        )
     }
 }
 
@@ -307,6 +332,7 @@ impl default::Default for Cmd {
             flags: vec![Flag::new()
                 .name("help")
                 .short_code("h")
+                .help_string("print help string")
                 .action(Action::StoreTrue)
                 .value_type(ValueType::Bool)],
             handler_func: Box::new(|_| Err("Unimplemented".to_string())),
