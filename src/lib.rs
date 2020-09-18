@@ -293,7 +293,17 @@ impl fmt::Display for Cmd {
             "".to_string()
         };
 
-        write!(f, "{}Usage:{}[OPTIONS] [SUBCOMMAND]", desc, name)
+        write!(
+            f,
+            "Usage:{}[OPTIONS] [SUBCOMMAND]\n{}\n{}",
+            name,
+            desc,
+            self.flags
+                .iter()
+                .map(|f| format!("{}", f))
+                .collect::<Vec<String>>()
+                .join("\n")
+        )
     }
 }
 

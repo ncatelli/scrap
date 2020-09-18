@@ -15,7 +15,7 @@ macro_rules! to_string_vec {
 #[test]
 fn should_match_expected_help_message() {
     assert_eq!(
-        "this is a test\nUsage: example [OPTIONS] [SUBCOMMAND]",
+        "Usage: example [OPTIONS] [SUBCOMMAND]\nthis is a test\n\n--help, -h",
         format!(
             "{}",
             Cmd::new()
