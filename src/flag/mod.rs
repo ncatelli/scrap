@@ -77,7 +77,7 @@ pub enum Action {
 pub struct Flag {
     pub name: String,
     pub short_code: String,
-    help_string: String,
+    pub help_string: String,
     action: Action,
     pub value_type: ValueType,
     pub default_value: Option<Value>,
