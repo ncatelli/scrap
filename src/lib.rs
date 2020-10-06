@@ -64,15 +64,13 @@ pub type DispatchFn = dyn Fn(Config) -> DispatchFnResult;
 /// commands.
 pub struct CmdDispatcher {
     pub config: Config,
-    pub help_string: String,
     pub handler_func: Box<DispatchFn>,
 }
 
 impl CmdDispatcher {
-    pub fn new(config: Config, help_string: String, handler_func: Box<DispatchFn>) -> Self {
+    pub fn new(config: Config, handler_func: Box<DispatchFn>) -> Self {
         CmdDispatcher {
             config,
-            help_string,
             handler_func,
         }
     }
@@ -85,27 +83,15 @@ impl CmdDispatcher {
     /// dispatch accepts a config as an argument to be passed on to the
     /// commands contained handler method.
     pub fn dispatch(self) -> Result<i32, String> {
-        if Some(&Value::Bool(true)) == self.config.get("help") {
-            println!("{}", self.help_string);
-            Ok(0)
-        } else {
-            (self.handler_func)(self.config)
-        }
+        (self.handler_func)(self.config)
     }
 }
 
 impl fmt::Debug for CmdDispatcher {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("CmdDispatcher")
-            .field("config", &self.config)
             .field("handler_func", &"Fn(Config) -> DispatchFnResult")
             .finish()
-    }
-}
-
-impl PartialEq for CmdDispatcher {
-    fn eq(&self, other: &CmdDispatcher) -> bool {
-        self.config == other.config
     }
 }
 
@@ -209,12 +195,24 @@ impl CmdGroup {
                     cm.extend(conf);
                     return Ok(CmdDispatcher::new(
                         cm,
-                        if offset == 0 {
-                            format!("{}", &cmdgroup_help_string)
-                        } else {
-                            format!("{}", &cmd)
-                        },
-                        cmd.handler_func,
+                        Box::new(move |cm| {
+                            if Some(&Value::Bool(true)) == cm.get("help") {
+                                println!(
+                                    "{}",
+                                    if offset == 0 {
+                                        format!("{}", &cmdgroup_help_string.clone())
+                                    } else {
+                                        format!("{}", &cmd.to_string())
+                                    }
+                                );
+                                Ok(0)
+                            } else if Some(&Value::Bool(true)) == cm.get("version") {
+                                println!("{}", &cmd.version);
+                                Ok(0)
+                            } else {
+                                (cmd.handler_func)(cm)
+                            }
+                        }),
                     ));
                 }
                 MatchStatus::Match((rem, conf)) => {
