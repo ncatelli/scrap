@@ -200,9 +200,9 @@ impl CmdGroup {
                                 println!(
                                     "{}",
                                     if offset == 0 {
-                                        format!("{}", &cmdgroup_help_string.clone())
+                                        format!("{}", &cmdgroup_help_string)
                                     } else {
-                                        format!("{}", &cmd.to_string())
+                                        format!("{}", &cmd)
                                     }
                                 );
                                 Ok(0)
