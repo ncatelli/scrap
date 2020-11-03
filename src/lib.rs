@@ -192,6 +192,7 @@ impl CmdGroup {
         for (offset, cmd) in self.flatten().into_iter().enumerate() {
             match cmd.parse(remainder)? {
                 MatchStatus::Match((rem, conf)) if rem.is_empty() => {
+                    cm.extend(config_from_defaults(&cmd.flags)); // set defaults
                     cm.extend(conf);
                     return Ok(CmdDispatcher::new(
                         cm,
