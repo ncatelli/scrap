@@ -21,6 +21,14 @@ fn main() {
             println!("dispatched with config: {:?}", c);
             Ok(0)
         }))
+        .flag(
+            Flag::new()
+                .name("test")
+                .short_code("t")
+                .action(Action::StoreTrue)
+                .value_type(ValueType::Bool)
+                .default_value(Value::Bool(false)),
+        )
         .run(args)
         .unwrap()
         .dispatch();
