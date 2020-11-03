@@ -254,3 +254,33 @@ fn should_match_correct_subcommand_when_multiple_are_configured() {
             .dispatch()
     );
 }
+
+#[test]
+fn should_generate_default_subcommand_flag_values() {
+    let input = to_string_vec!(vec!["/usr/bin/example", "run"]);
+    let mut expected_config = Config::new();
+    expected_config.insert("help".to_string(), Value::Bool(false));
+    expected_config.insert("test".to_string(), Value::Integer(1024));
+
+    assert_eq!(
+        expected_config,
+        Cmd::new()
+            .name("example")
+            .description("this is a test")
+            .author("John Doe <jdoe@example.com>")
+            .version("1.2.3")
+            .subcommand(
+                Cmd::new().name("run").handler(Box::new(|_| Ok(0))).flag(
+                    Flag::new()
+                        .name("test")
+                        .short_code("t")
+                        .action(Action::ExpectSingleValue)
+                        .value_type(ValueType::Integer)
+                        .default_value(Value::Integer(1024))
+                )
+            )
+            .run(input)
+            .unwrap()
+            .to_config()
+    );
+}
