@@ -5,4 +5,4 @@ authors = ["Nate Catelli <ncatelli@packetfire.org>"]
 edition = "2018"
 
 [dependencies]
-parcel = { git = "https://github.com/ncatelli/parcel", tag = "v1.6.0" }
+parcel = { git = "https://github.com/ncatelli/parcel", tag = "v1.9.1" }
