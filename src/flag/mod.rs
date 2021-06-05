@@ -90,26 +90,26 @@ impl Flag {
     }
 
     /// Set the command name.
-    pub fn name(mut self, name: &str) -> Flag {
+    pub fn name(mut self, name: &str) -> Self {
         self.name = name.to_string();
         self
     }
 
     /// Set the short_code.
-    pub fn short_code(mut self, short: &str) -> Flag {
+    pub fn short_code(mut self, short: &str) -> Self {
         self.short_code = short.to_string();
         self
     }
 
     /// Set the description.
-    pub fn help_string(mut self, hs: &str) -> Flag {
+    pub fn help_string(mut self, hs: &str) -> Self {
         self.help_string = hs.to_string();
         self
     }
 
     /// Set the action field.
-    pub fn action(self, action: Action) -> Flag {
-        let mut f: Flag = match action {
+    pub fn action(self, action: Action) -> Self {
+        let mut f: Self = match action {
             Action::StoreFalse => self.default_value(Value::Bool(true)),
             Action::StoreTrue => self.default_value(Value::Bool(false)),
             _ => self,
@@ -119,13 +119,13 @@ impl Flag {
     }
 
     /// Set the action field.
-    pub fn value_type(mut self, vt: ValueType) -> Flag {
+    pub fn value_type(mut self, vt: ValueType) -> Self {
         self.value_type = vt;
         self
     }
 
     /// Set the default_value field.
-    pub fn default_value(mut self, v: Value) -> Flag {
+    pub fn default_value(mut self, v: Value) -> Self {
         self.default_value = Some(v);
         self
     }
@@ -145,7 +145,7 @@ impl fmt::Display for Flag {
 
 impl default::Default for Flag {
     fn default() -> Self {
-        Flag {
+        Self {
             name: String::new(),
             short_code: String::new(),
             help_string: String::new(),
@@ -170,7 +170,7 @@ impl<'a> Parser<'a, &'a [FlagOrValue], (String, Value)> for Flag {
         &self,
         input: &'a [FlagOrValue],
     ) -> ParseResult<'a, &'a [FlagOrValue], (String, Value)> {
-        let owned_flag = Flag::new().name(&self.name).short_code(&self.short_code);
+        let owned_flag = Self::new().name(&self.name).short_code(&self.short_code);
         match self.action {
             Action::StoreTrue => match_flag(owned_flag).map(|f| (f.name, Value::Bool(true))),
             Action::StoreFalse => match_flag(owned_flag).map(|f| (f.name, Value::Bool(false))),
