@@ -32,7 +32,7 @@ impl<'a> Parser<'a, Vec<String>, Vec<FlagOrValue>> for ArgumentParser {
             .map(|pr| match pr {
                 Ok(MatchStatus::Match((_, v))) => Ok(v),
                 Ok(MatchStatus::NoMatch(next)) => Err(next.to_string()),
-                Err(e) => panic!(e),
+                Err(e) => panic!("{}", e),
             })
             .collect();
 
