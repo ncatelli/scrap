@@ -5,6 +5,8 @@ use parcel::ParseResult;
 use std::default;
 use std::fmt;
 
+mod typed;
+
 #[cfg(test)]
 mod tests;
 
