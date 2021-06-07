@@ -1,9 +1,68 @@
 pub type EvaluateResult<'a, V> = Result<V, String>;
 
+pub trait Helpable {
+    type Output;
+
+    fn help(&self) -> Self::Output;
+}
+
+#[derive(Default)]
+pub struct HelpContext {
+    name: &'static str,
+    short_code: &'static str,
+    description: &'static str,
+    /// Additional String values to be appended after the description.
+    modifiers: Vec<String>,
+}
+
+impl HelpContext {
+    pub fn new(
+        name: &'static str,
+        short_code: &'static str,
+        description: &'static str,
+        modifiers: Vec<String>,
+    ) -> Self {
+        Self {
+            name,
+            short_code,
+            description,
+            modifiers,
+        }
+    }
+
+    pub fn with_modifier(mut self, modifier: String) -> Self {
+        self.modifiers.push(modifier);
+        self
+    }
+}
+
+impl std::fmt::Display for HelpContext {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.modifiers.is_empty() {
+            write!(
+                f,
+                "--{}, -{}\t{}",
+                self.name, self.short_code, self.description,
+            )
+        } else {
+            write!(
+                f,
+                "--{}, -{}\t{}\t[{}]",
+                self.name,
+                self.short_code,
+                self.description,
+                self.modifiers
+                    .iter()
+                    .map(|modifier| format!("({})", modifier))
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            )
+        }
+    }
+}
+
 pub trait Evaluator<'a, A, B> {
     fn evaluate(&self, input: A) -> EvaluateResult<'a, B>;
-
-    fn help(&self) -> HelpContext;
 
     fn optional(self) -> BoxedEvaluator<'a, A, Option<B>>
     where
@@ -33,10 +92,6 @@ impl<'a, A, B> Evaluator<'a, A, B> for BoxedEvaluator<'a, A, B> {
     fn evaluate(&self, input: A) -> EvaluateResult<'a, B> {
         self.evaluator.evaluate(input)
     }
-
-    fn help(&self) -> HelpContext {
-        HelpContext::default()
-    }
 }
 
 impl<'a, F, A, B> Evaluator<'a, A, B> for F
@@ -46,60 +101,6 @@ where
 {
     fn evaluate(&self, input: A) -> EvaluateResult<'a, B> {
         self(input)
-    }
-
-    fn help(&self) -> HelpContext {
-        HelpContext::default()
-    }
-}
-
-#[derive(Default)]
-pub struct HelpContext {
-    name: &'static str,
-    short_code: &'static str,
-    description: &'static str,
-    /// Additional String values to be appended after the description.
-    modifiers: Vec<String>,
-}
-
-impl HelpContext {
-    pub fn new(
-        name: &'static str,
-        short_code: &'static str,
-        description: &'static str,
-        modifiers: Vec<String>,
-    ) -> Self {
-        Self {
-            name,
-            short_code,
-            description,
-            modifiers,
-        }
-    }
-}
-
-impl std::fmt::Display for HelpContext {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.modifiers.is_empty() {
-            write!(
-                f,
-                "--{}, -{}\t{}",
-                self.name, self.short_code, self.description,
-            )
-        } else {
-            write!(
-                f,
-                "--{}, -{}\t{}\t[{}]",
-                self.name,
-                self.short_code,
-                self.description,
-                self.modifiers
-                    .iter()
-                    .map(|modifier| format!("({})", modifier))
-                    .collect::<Vec<String>>()
-                    .join(", ")
-            )
-        }
     }
 }
 
@@ -133,10 +134,6 @@ where
                 Err(e) => Err(format!("failed to map right side: {}", e)),
             })
     }
-
-    fn help(&self) -> HelpContext {
-        HelpContext::default()
-    }
 }
 
 #[derive(Debug)]
@@ -158,12 +155,16 @@ where
     fn evaluate(&self, input: A) -> EvaluateResult<'a, Option<B>> {
         Ok(self.evaluator.evaluate(input).map_or(None, |b| Some(b)))
     }
+}
 
-    fn help(&self) -> HelpContext {
-        let mut hctx = self.evaluator.help();
-        hctx.modifiers.push("optional".to_string());
+impl<E> Helpable for Optional<E>
+where
+    E: Helpable<Output = HelpContext>,
+{
+    type Output = HelpContext;
 
-        hctx
+    fn help(&self) -> Self::Output {
+        self.evaluator.help().with_modifier("optional".to_string())
     }
 }
 
@@ -188,7 +189,7 @@ impl<B, E> WithDefault<B, E> {
 impl<'a, E, A, B> Evaluator<'a, A, B> for WithDefault<B, E>
 where
     A: 'a,
-    B: Clone + std::fmt::Debug,
+    B: Clone,
     E: Evaluator<'a, A, Option<B>>,
 {
     fn evaluate(&self, input: A) -> EvaluateResult<'a, B> {
@@ -196,13 +197,19 @@ where
             .evaluate(input)
             .map(|op| op.unwrap_or(self.default.clone()))
     }
+}
 
-    fn help(&self) -> HelpContext {
-        let mut hctx = self.evaluator.help();
-        hctx.modifiers
-            .push(format!("Default: {:?}", self.default.clone()));
+impl<B, E> Helpable for WithDefault<B, E>
+where
+    B: Clone + std::fmt::Debug,
+    E: Helpable + Helpable<Output = HelpContext>,
+{
+    type Output = HelpContext;
 
-        hctx
+    fn help(&self) -> Self::Output {
+        self.evaluator
+            .help()
+            .with_modifier(format!("Default: {:?}", self.default.clone()))
     }
 }
 
@@ -238,8 +245,12 @@ impl<'a> Evaluator<'a, &'a [&'a str], String> for ExpectStringValue {
             .and_then(|idx| input[..].get(idx + 1).map(|&v| v.to_string()))
             .ok_or("No matching Value".to_string())
     }
+}
 
-    fn help(&self) -> HelpContext {
+impl Helpable for ExpectStringValue {
+    type Output = HelpContext;
+
+    fn help(&self) -> Self::Output {
         HelpContext::new(self.name, self.short_code, self.description, Vec::new())
     }
 }
@@ -349,7 +360,7 @@ mod tests {
             "--name, -n\tA name.\t[(optional), (Default: \"foo\")]".to_string(),
             format!(
                 "{}",
-                WithDefault::new(
+                WithDefault::<String, _>::new(
                     "foo",
                     Optional::new(ExpectStringValue::new("name", "n", "A name."))
                 )
