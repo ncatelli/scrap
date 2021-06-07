@@ -2,6 +2,16 @@ pub type EvaluateResult<'a, V> = Result<V, String>;
 
 pub trait Evaluator<'a, A, B> {
     fn evaluate(&self, input: A) -> EvaluateResult<'a, B>;
+
+    fn help(&self) -> HelpContext;
+
+    fn optional(self) -> BoxedEvaluator<'a, A, Option<B>>
+    where
+        Self: Sized + 'a,
+        A: 'a,
+    {
+        BoxedEvaluator::new(Optional::new(self))
+    }
 }
 
 pub struct BoxedEvaluator<'a, A, B> {
@@ -23,6 +33,10 @@ impl<'a, A, B> Evaluator<'a, A, B> for BoxedEvaluator<'a, A, B> {
     fn evaluate(&self, input: A) -> EvaluateResult<'a, B> {
         self.evaluator.evaluate(input)
     }
+
+    fn help(&self) -> HelpContext {
+        HelpContext::default()
+    }
 }
 
 impl<'a, F, A, B> Evaluator<'a, A, B> for F
@@ -32,6 +46,60 @@ where
 {
     fn evaluate(&self, input: A) -> EvaluateResult<'a, B> {
         self(input)
+    }
+
+    fn help(&self) -> HelpContext {
+        HelpContext::default()
+    }
+}
+
+#[derive(Default)]
+pub struct HelpContext {
+    name: &'static str,
+    short_code: &'static str,
+    description: &'static str,
+    /// Additional String values to be appended after the description.
+    modifiers: Vec<String>,
+}
+
+impl HelpContext {
+    pub fn new(
+        name: &'static str,
+        short_code: &'static str,
+        description: &'static str,
+        modifiers: Vec<String>,
+    ) -> Self {
+        Self {
+            name,
+            short_code,
+            description,
+            modifiers,
+        }
+    }
+}
+
+impl std::fmt::Display for HelpContext {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.modifiers.is_empty() {
+            write!(
+                f,
+                "--{}, -{}\t{}",
+                self.name, self.short_code, self.description,
+            )
+        } else {
+            write!(
+                f,
+                "--{}, -{}\t{}\t[{}]",
+                self.name,
+                self.short_code,
+                self.description,
+                self.modifiers
+                    .iter()
+                    .map(|modifier| format!("({})", modifier))
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            )
+        }
     }
 }
 
@@ -65,6 +133,10 @@ where
                 Err(e) => Err(format!("failed to map right side: {}", e)),
             })
     }
+
+    fn help(&self) -> HelpContext {
+        HelpContext::default()
+    }
 }
 
 #[derive(Debug)]
@@ -85,6 +157,13 @@ where
 {
     fn evaluate(&self, input: A) -> EvaluateResult<'a, Option<B>> {
         Ok(self.evaluator.evaluate(input).map_or(None, |b| Some(b)))
+    }
+
+    fn help(&self) -> HelpContext {
+        let mut hctx = self.evaluator.help();
+        hctx.modifiers.push("optional".to_string());
+
+        hctx
     }
 }
 
@@ -109,7 +188,7 @@ impl<B, E> WithDefault<B, E> {
 impl<'a, E, A, B> Evaluator<'a, A, B> for WithDefault<B, E>
 where
     A: 'a,
-    B: Clone,
+    B: Clone + std::fmt::Debug,
     E: Evaluator<'a, A, Option<B>>,
 {
     fn evaluate(&self, input: A) -> EvaluateResult<'a, B> {
@@ -117,18 +196,31 @@ where
             .evaluate(input)
             .map(|op| op.unwrap_or(self.default.clone()))
     }
+
+    fn help(&self) -> HelpContext {
+        let mut hctx = self.evaluator.help();
+        hctx.modifiers
+            .push(format!("Default: {:?}", self.default.clone()));
+
+        hctx
+    }
 }
 
 #[derive(Debug)]
 pub struct ExpectStringValue {
     name: &'static str,
     short_code: &'static str,
+    description: &'static str,
 }
 
 impl ExpectStringValue {
     #[allow(dead_code)]
-    pub fn new(name: &'static str, short_code: &'static str) -> Self {
-        Self { name, short_code }
+    pub fn new(name: &'static str, short_code: &'static str, description: &'static str) -> Self {
+        Self {
+            name,
+            short_code,
+            description,
+        }
     }
 }
 
@@ -146,6 +238,10 @@ impl<'a> Evaluator<'a, &'a [&'a str], String> for ExpectStringValue {
             .and_then(|idx| input[..].get(idx + 1).map(|&v| v.to_string()))
             .ok_or("No matching Value".to_string())
     }
+
+    fn help(&self) -> HelpContext {
+        HelpContext::new(self.name, self.short_code, self.description, Vec::new())
+    }
 }
 
 #[cfg(test)]
@@ -153,57 +249,112 @@ mod tests {
     use super::*;
 
     #[test]
-    fn assert_evaluator_should_find_valid_string_flag() {
+    fn should_find_valid_string_flag() {
         let input_long = vec!["hello", "--name", "foo"];
         let input_short = vec!["hello", "-n", "foo"];
 
         assert_eq!(
             Ok("foo".to_string()),
-            ExpectStringValue::new("name", "n").evaluate(&input_long[..])
+            ExpectStringValue::new("name", "n", "A name.").evaluate(&input_long[..])
         );
 
         assert_eq!(
             Ok("foo".to_string()),
-            ExpectStringValue::new("name", "n").evaluate(&input_short[..])
+            ExpectStringValue::new("name", "n", "A name.").evaluate(&input_short[..])
         );
     }
 
     #[test]
-    fn assert_evaluator_should_find_joined_evaluators() {
+    fn should_generate_expected_helpstring_for_given_string_check() {
+        assert_eq!(
+            "--name, -n\tA name.".to_string(),
+            format!("{}", ExpectStringValue::new("name", "n", "A name.").help())
+        )
+    }
+
+    #[test]
+    fn should_find_joined_evaluators() {
         let input = vec!["hello", "-n", "foo", "-l", "info"];
         assert_eq!(
             Ok(("foo".to_string(), "info".to_string())),
             Join::new(
-                ExpectStringValue::new("name", "n"),
-                ExpectStringValue::new("log-level", "l"),
+                ExpectStringValue::new("name", "n", "A name."),
+                ExpectStringValue::new("log-level", "l", "A given log level setting."),
             )
             .evaluate(&input[..])
         );
     }
 
     #[test]
-    fn assert_evaluator_should_optionally_match_a_value() {
+    fn should_optionally_match_a_value() {
         let input = vec!["hello", "-n", "foo"];
 
         assert_eq!(
             Ok(Some("foo".to_string())),
-            Optional::new(ExpectStringValue::new("name", "n")).evaluate(&input[..])
+            Optional::new(ExpectStringValue::new("name", "n", "A name.")).evaluate(&input[..])
+        );
+
+        // validate boxed syntax works
+        assert_eq!(
+            Ok(Some("foo".to_string())),
+            ExpectStringValue::new("name", "n", "A name.")
+                .optional()
+                .evaluate(&input[..])
         );
 
         assert_eq!(
             Ok(None),
-            Optional::new(ExpectStringValue::new("log-level", "l")).evaluate(&input[..])
+            Optional::new(ExpectStringValue::new(
+                "log-level",
+                "l",
+                "A given log level setting."
+            ))
+            .evaluate(&input[..])
         );
     }
 
     #[test]
-    fn assert_evaluator_should_default_an_optional_match_when_assigned() {
+    fn should_generate_expected_helpstring_for_optional_flag() {
+        assert_eq!(
+            "--log-level, -l\tA given log level setting.\t[(optional)]".to_string(),
+            format!(
+                "{}",
+                Optional::new(ExpectStringValue::new(
+                    "log-level",
+                    "l",
+                    "A given log level setting."
+                ))
+                .help()
+            )
+        )
+    }
+
+    #[test]
+    fn should_default_an_optional_match_when_assigned() {
         let input = vec!["hello", "--log-level", "info"];
 
         assert_eq!(
             Ok("foo".to_string()),
-            WithDefault::new("foo", Optional::new(ExpectStringValue::new("name", "n")))
-                .evaluate(&input[..])
+            WithDefault::new(
+                "foo",
+                Optional::new(ExpectStringValue::new("name", "n", "A name."))
+            )
+            .evaluate(&input[..])
         );
+    }
+
+    #[test]
+    fn should_generate_expected_helpstring_for_optional_with_default_flag() {
+        assert_eq!(
+            "--name, -n\tA name.\t[(optional), (Default: \"foo\")]".to_string(),
+            format!(
+                "{}",
+                WithDefault::new(
+                    "foo",
+                    Optional::new(ExpectStringValue::new("name", "n", "A name."))
+                )
+                .help()
+            )
+        )
     }
 }
