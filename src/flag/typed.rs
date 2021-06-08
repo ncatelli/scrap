@@ -1,13 +1,51 @@
+use std::fmt::write;
+
 pub type EvaluateResult<'a, V> = Result<V, String>;
 
-pub trait Helpable {
+pub trait Helpable
+where
+    Self::Output: std::fmt::Display,
+{
     type Output;
 
     fn help(&self) -> Self::Output;
 }
 
+#[derive(Default, Debug, Clone, PartialEq)]
+pub struct CmdHelpCollector {
+    tab_depth: usize,
+    inner: Vec<String>,
+}
+
+impl CmdHelpCollector {
+    pub fn new(tab_depth: usize, inner: Vec<String>) -> Self {
+        Self { tab_depth, inner }
+    }
+}
+
+impl std::fmt::Display for CmdHelpCollector {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let tab_str: String = "\t"
+            .chars()
+            .into_iter()
+            .cycle()
+            .take(self.tab_depth)
+            .collect();
+
+        write!(
+            f,
+            "{}",
+            self.inner
+                .iter()
+                .map(|hs| format!("{}{}", &tab_str, hs))
+                .collect::<Vec<String>>()
+                .join("\n")
+        )
+    }
+}
+
 #[derive(Default)]
-pub struct HelpContext {
+pub struct FlagHelpContext {
     name: &'static str,
     short_code: &'static str,
     description: &'static str,
@@ -15,7 +53,7 @@ pub struct HelpContext {
     modifiers: Vec<String>,
 }
 
-impl HelpContext {
+impl FlagHelpContext {
     pub fn new(
         name: &'static str,
         short_code: &'static str,
@@ -36,7 +74,7 @@ impl HelpContext {
     }
 }
 
-impl std::fmt::Display for HelpContext {
+impl std::fmt::Display for FlagHelpContext {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if self.modifiers.is_empty() {
             write!(
@@ -136,6 +174,24 @@ where
     }
 }
 
+impl<E1, E2> Helpable for Join<E1, E2>
+where
+    E1: Helpable,
+    E2: Helpable,
+{
+    type Output = CmdHelpCollector;
+
+    fn help(&self) -> Self::Output {
+        CmdHelpCollector::new(
+            1,
+            vec![
+                format!("{}", self.evaluator1.help()),
+                format!("{}", self.evaluator2.help()),
+            ],
+        )
+    }
+}
+
 #[derive(Debug)]
 pub struct Optional<E> {
     evaluator: E,
@@ -159,9 +215,9 @@ where
 
 impl<E> Helpable for Optional<E>
 where
-    E: Helpable<Output = HelpContext>,
+    E: Helpable<Output = FlagHelpContext>,
 {
-    type Output = HelpContext;
+    type Output = FlagHelpContext;
 
     fn help(&self) -> Self::Output {
         self.evaluator.help().with_modifier("optional".to_string())
@@ -202,9 +258,9 @@ where
 impl<B, E> Helpable for WithDefault<B, E>
 where
     B: Clone + std::fmt::Debug,
-    E: Helpable + Helpable<Output = HelpContext>,
+    E: Helpable + Helpable<Output = FlagHelpContext>,
 {
-    type Output = HelpContext;
+    type Output = FlagHelpContext;
 
     fn help(&self) -> Self::Output {
         self.evaluator
@@ -248,10 +304,10 @@ impl<'a> Evaluator<'a, &'a [&'a str], String> for ExpectStringValue {
 }
 
 impl Helpable for ExpectStringValue {
-    type Output = HelpContext;
+    type Output = FlagHelpContext;
 
     fn help(&self) -> Self::Output {
-        HelpContext::new(self.name, self.short_code, self.description, Vec::new())
+        FlagHelpContext::new(self.name, self.short_code, self.description, Vec::new())
     }
 }
 
@@ -297,6 +353,34 @@ mod tests {
     }
 
     #[test]
+    fn should_generate_expected_helpstring_for_join_evaluator() {
+        assert_eq!(
+            CmdHelpCollector::new(
+                1,
+                vec![
+                    "--name, -n\tA name.".to_string(),
+                    "--log-level, -l\tA given log level setting.".to_string()
+                ]
+            ),
+            Join::new(
+                ExpectStringValue::new("name", "n", "A name."),
+                ExpectStringValue::new("log-level", "l", "A given log level setting.")
+            )
+            .help()
+        );
+
+        assert_eq!(
+            "\t--name, -n\tA name.\n\t--log-level, -l\tA given log level setting.".to_string(),
+            Join::new(
+                ExpectStringValue::new("name", "n", "A name."),
+                ExpectStringValue::new("log-level", "l", "A given log level setting.")
+            )
+            .help()
+            .to_string()
+        )
+    }
+
+    #[test]
     fn should_optionally_match_a_value() {
         let input = vec!["hello", "-n", "foo"];
 
@@ -328,15 +412,13 @@ mod tests {
     fn should_generate_expected_helpstring_for_optional_flag() {
         assert_eq!(
             "--log-level, -l\tA given log level setting.\t[(optional)]".to_string(),
-            format!(
-                "{}",
-                Optional::new(ExpectStringValue::new(
-                    "log-level",
-                    "l",
-                    "A given log level setting."
-                ))
-                .help()
-            )
+            Optional::new(ExpectStringValue::new(
+                "log-level",
+                "l",
+                "A given log level setting."
+            ))
+            .help()
+            .to_string()
         )
     }
 
@@ -358,14 +440,12 @@ mod tests {
     fn should_generate_expected_helpstring_for_optional_with_default_flag() {
         assert_eq!(
             "--name, -n\tA name.\t[(optional), (Default: \"foo\")]".to_string(),
-            format!(
-                "{}",
-                WithDefault::<String, _>::new(
-                    "foo",
-                    Optional::new(ExpectStringValue::new("name", "n", "A name."))
-                )
-                .help()
+            WithDefault::<String, _>::new(
+                "foo",
+                Optional::new(ExpectStringValue::new("name", "n", "A name."))
             )
+            .help()
+            .to_string()
         )
     }
 }
