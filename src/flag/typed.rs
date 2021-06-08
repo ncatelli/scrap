@@ -28,13 +28,13 @@ where
 
 impl<F> Helpable for Cmd<F>
 where
-    F: Helpable<Output = FlagHelpContext>,
+    F: std::fmt::Display,
 {
-    type Output = CmdHelpContext<FlagHelpContext>;
+    type Output = String;
 
     fn help(&self) -> Self::Output {
-        let fhelp = self.flags.help();
-        CmdHelpContext::new(self.name, self.descriptions, fhelp)
+        let fhelp = self.flags.to_string();
+        CmdHelpContext::new(self.name, self.descriptions, fhelp).to_string()
     }
 }
 
