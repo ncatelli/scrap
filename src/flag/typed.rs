@@ -1,6 +1,69 @@
-use std::fmt::write;
-
 pub type EvaluateResult<'a, V> = Result<V, String>;
+
+#[derive(Debug)]
+pub struct Cmd<F> {
+    name: &'static str,
+    descriptions: &'static str,
+    flags: F,
+}
+
+impl<F> Cmd<F> {
+    pub fn new(name: &'static str, descriptions: &'static str, flags: F) -> Self {
+        Self {
+            name,
+            descriptions,
+            flags,
+        }
+    }
+}
+
+impl<'a, F, A, B> Evaluator<'a, A, B> for Cmd<F>
+where
+    F: Evaluator<'a, A, B>,
+{
+    fn evaluate(&self, input: A) -> EvaluateResult<B> {
+        self.flags.evaluate(input)
+    }
+}
+
+impl<F> Helpable for Cmd<F>
+where
+    F: Helpable<Output = FlagHelpContext>,
+{
+    type Output = CmdHelpContext<FlagHelpContext>;
+
+    fn help(&self) -> Self::Output {
+        let fhelp = self.flags.help();
+        CmdHelpContext::new(self.name, self.descriptions, fhelp)
+    }
+}
+
+#[derive(Default)]
+pub struct CmdHelpContext<F> {
+    name: &'static str,
+    description: &'static str,
+    /// Additional String values to be appended after the description.
+    flags: F,
+}
+
+impl<F> CmdHelpContext<F> {
+    pub fn new(name: &'static str, description: &'static str, flags: F) -> Self {
+        Self {
+            name,
+            description,
+            flags,
+        }
+    }
+}
+
+impl<F> std::fmt::Display for CmdHelpContext<F>
+where
+    F: std::fmt::Display,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:\n{}\n{}", self.name, self.description, self.flags)
+    }
+}
 
 pub trait Helpable
 where
@@ -314,6 +377,39 @@ impl Helpable for ExpectStringValue {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn should_evaluate_command_with_valid_sub_flags() {
+        assert_eq!(
+            Ok("foo".to_string()),
+            Cmd::new(
+                "test",
+                "a test cmd",
+                WithDefault::<String, _>::new(
+                    "foo",
+                    Optional::new(ExpectStringValue::new("name", "n", "A name.")),
+                ),
+            )
+            .evaluate(&vec!["test"][..])
+        )
+    }
+
+    #[test]
+    fn should_generate_expected_helpstring_for_given_command() {
+        assert_eq!(
+            "test:\na test cmd\n--name, -n\tA name.\t[(optional), (Default: \"foo\")]".to_string(),
+            Cmd::new(
+                "test",
+                "a test cmd",
+                WithDefault::<String, _>::new(
+                    "foo",
+                    Optional::new(ExpectStringValue::new("name", "n", "A name.")),
+                ),
+            )
+            .help()
+            .to_string()
+        )
+    }
 
     #[test]
     fn should_find_valid_string_flag() {
