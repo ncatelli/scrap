@@ -128,6 +128,22 @@ impl Flag {
     ) -> ExpectStringValue {
         ExpectStringValue::new(name, short_code, description)
     }
+
+    pub fn store_true(
+        name: &'static str,
+        short_code: &'static str,
+        description: &'static str,
+    ) -> StoreTrue {
+        StoreTrue::new(name, short_code, description)
+    }
+
+    pub fn store_false(
+        name: &'static str,
+        short_code: &'static str,
+        description: &'static str,
+    ) -> StoreFalse {
+        StoreFalse::new(name, short_code, description)
+    }
 }
 
 pub enum FlagHelpCollector {
@@ -431,11 +447,105 @@ impl<'a> Evaluator<'a, &'a [&'a str], String> for ExpectStringValue {
             // Only need the index.
             .map(|(idx, _)| idx)
             .and_then(|idx| input[..].get(idx + 1).map(|&v| v.to_string()))
-            .ok_or("No matching Value".to_string())
+            .ok_or("No matching value".to_string())
     }
 }
 
 impl Helpable for ExpectStringValue {
+    type Output = FlagHelpCollector;
+
+    fn help(&self) -> Self::Output {
+        FlagHelpCollector::Single(FlagHelpContext::new(
+            self.name,
+            self.short_code,
+            self.description,
+            Vec::new(),
+        ))
+    }
+}
+
+#[derive(Debug)]
+pub struct StoreTrue {
+    name: &'static str,
+    short_code: &'static str,
+    description: &'static str,
+}
+
+impl Defaultable for StoreTrue {}
+
+impl StoreTrue {
+    #[allow(dead_code)]
+    pub fn new(name: &'static str, short_code: &'static str, description: &'static str) -> Self {
+        Self {
+            name,
+            short_code,
+            description,
+        }
+    }
+}
+
+impl<'a> Evaluator<'a, &'a [&'a str], bool> for StoreTrue {
+    fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, bool> {
+        input[..]
+            .iter()
+            .enumerate()
+            .find(|(_, &arg)| {
+                (arg == format!("{}{}", "--", self.name))
+                    || (arg == format!("{}{}", "-", self.short_code))
+            })
+            .map(|_| true)
+            .ok_or("No matching value".to_string())
+    }
+}
+
+impl Helpable for StoreTrue {
+    type Output = FlagHelpCollector;
+
+    fn help(&self) -> Self::Output {
+        FlagHelpCollector::Single(FlagHelpContext::new(
+            self.name,
+            self.short_code,
+            self.description,
+            Vec::new(),
+        ))
+    }
+}
+
+#[derive(Debug)]
+pub struct StoreFalse {
+    name: &'static str,
+    short_code: &'static str,
+    description: &'static str,
+}
+
+impl Defaultable for StoreFalse {}
+
+impl StoreFalse {
+    #[allow(dead_code)]
+    pub fn new(name: &'static str, short_code: &'static str, description: &'static str) -> Self {
+        Self {
+            name,
+            short_code,
+            description,
+        }
+    }
+}
+
+impl<'a> Evaluator<'a, &'a [&'a str], bool> for StoreFalse {
+    fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, bool> {
+        input[..]
+            .iter()
+            .enumerate()
+            .find(|(_, &arg)| {
+                (arg == format!("{}{}", "--", self.name))
+                    || (arg == format!("{}{}", "-", self.short_code))
+            })
+            .map(|_| false)
+            .ok_or("No matching value".to_string())
+    }
+}
+
+impl Helpable for StoreFalse {
     type Output = FlagHelpCollector;
 
     fn help(&self) -> Self::Output {
@@ -483,52 +593,20 @@ mod tests {
                 Flag::expect_string("name", "n", "A name.")
                     .optional()
                     .with_default("foo".to_string())
-                    .join(Flag::expect_string(
-                        "log-level",
-                        "l",
-                        "A given log level setting.",
-                    )),
+                    .join(
+                        Flag::store_true("debug", "d", "run command in debug mode.")
+                            .optional()
+                            .with_default(false),
+                    ),
             )
-            .with_handler(|(l, r)| {
-                format!("(Left: {}, Right: {})", &l, &r);
+            .with_handler(|(l, debug)| {
+                format!("(Left: {}, Right: {})", &l, debug);
             });
 
         assert_eq!(
             Ok(()),
             cmd.evaluate(&["test", "-l", "info"][..])
                 .map(|flag_values| cmd.dispatch(flag_values))
-        );
-    }
-
-    #[test]
-    fn should_evaluate_command_with_valid_sub_flags() {
-        assert_eq!(
-            Ok("foo".to_string()),
-            Cmd::new("test")
-                .description("a test cmd")
-                .with_flags(
-                    Flag::expect_string("name", "n", "A name.")
-                        .optional()
-                        .with_default("foo".to_string())
-                )
-                .evaluate(&["test"][..])
-        );
-
-        assert_eq!(
-            Ok(("foo".to_string(), "info".to_string())),
-            Cmd::new("test")
-                .description("a test cmd")
-                .with_flags(
-                    Flag::expect_string("name", "n", "A name.")
-                        .optional()
-                        .with_default("foo".to_string())
-                        .join(Flag::expect_string(
-                            "log-level",
-                            "l",
-                            "A given log level setting."
-                        ))
-                )
-                .evaluate(&["test", "-l", "info"][..])
         );
     }
 
@@ -549,17 +627,67 @@ mod tests {
 
     #[test]
     fn should_find_valid_string_flag() {
-        let input_long = vec!["hello", "--name", "foo"];
-        let input_short = vec!["hello", "-n", "foo"];
-
         assert_eq!(
             Ok("foo".to_string()),
-            ExpectStringValue::new("name", "n", "A name.").evaluate(&input_long[..])
+            ExpectStringValue::new("name", "n", "A name.")
+                .evaluate(&["hello", "--name", "foo"][..])
         );
 
         assert_eq!(
             Ok("foo".to_string()),
-            ExpectStringValue::new("name", "n", "A name.").evaluate(&input_short[..])
+            ExpectStringValue::new("name", "n", "A name.").evaluate(&["hello", "-n", "foo"][..])
+        );
+    }
+
+    #[test]
+    fn should_find_valid_store_true_flag() {
+        assert_eq!(
+            Ok(true),
+            StoreTrue::new("debug", "d", "Run in debug mode.").evaluate(&["hello", "--debug"][..])
+        );
+
+        assert_eq!(
+            Ok(true),
+            StoreTrue::new("debug", "d", "Run in debug mode.").evaluate(&["hello", "-d"][..])
+        );
+
+        // should appropriately default.
+        assert_eq!(
+            Ok(false),
+            WithDefault::new(
+                false,
+                Optional::new(StoreTrue::new("debug", "d", "Run in debug mode."))
+            )
+            .evaluate(&["hello"][..])
+        );
+    }
+
+    #[test]
+    fn should_find_valid_store_false_flag() {
+        assert_eq!(
+            Ok(false),
+            StoreFalse::new("no-wait", "n", "don't wait for a response.")
+                .evaluate(&["hello", "--no-wait"][..])
+        );
+
+        assert_eq!(
+            Ok(false),
+            StoreFalse::new("no-wait", "n", "don't wait for a response.")
+                .evaluate(&["hello", "-n"][..])
+        );
+
+        // should appropriately default.
+        assert_eq!(
+            Ok(true),
+            WithDefault::new(
+                true,
+                Optional::new(StoreFalse::new(
+                    "no-wait",
+                    "n",
+                    "don't wait for a response."
+                ))
+            )
+            .evaluate(&["hello"][..])
         );
     }
 
