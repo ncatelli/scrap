@@ -1,27 +1,53 @@
 pub type EvaluateResult<'a, V> = Result<V, String>;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Cmd<F> {
     name: &'static str,
     description: &'static str,
+    author: &'static str,
+    version: &'static str,
     flags: F,
 }
 
 impl Cmd<()> {
-    pub fn new(name: &'static str, description: &'static str) -> Self {
+    pub fn new(name: &'static str) -> Self {
         Self {
             name,
-            description,
+            description: "",
+            author: "",
+            version: "",
             flags: (),
         }
     }
 }
 
 impl<T> Cmd<T> {
+    pub fn name(mut self, name: &'static str) -> Self {
+        self.name = name;
+        self
+    }
+
+    pub fn description(mut self, description: &'static str) -> Self {
+        self.description = description;
+        self
+    }
+
+    pub fn author(mut self, author: &'static str) -> Self {
+        self.author = author;
+        self
+    }
+
+    pub fn version(mut self, version: &'static str) -> Self {
+        self.version = version;
+        self
+    }
+
     pub fn with_flags<F>(self, flags: F) -> Cmd<F> {
         Cmd {
             name: self.name,
             description: self.description,
+            author: self.author,
+            version: self.version,
             flags,
         }
     }
@@ -404,7 +430,8 @@ mod tests {
     fn should_evaluate_command_with_valid_sub_flags() {
         assert_eq!(
             Ok("foo".to_string()),
-            Cmd::new("test", "a test cmd")
+            Cmd::new("test")
+                .description("a test cmd")
                 .with_flags(
                     Flag::expect_string("name", "n", "A name.")
                         .optional()
@@ -415,7 +442,8 @@ mod tests {
 
         assert_eq!(
             Ok(("foo".to_string(), "info".to_string())),
-            Cmd::new("test", "a test cmd")
+            Cmd::new("test")
+                .description("a test cmd")
                 .with_flags(
                     Flag::expect_string("name", "n", "A name.")
                         .optional()
@@ -434,7 +462,8 @@ mod tests {
     fn should_generate_expected_helpstring_for_given_command() {
         assert_eq!(
             "test:\na test cmd\n--name, -n\tA name.\t[(optional), (Default: \"foo\")]".to_string(),
-            Cmd::new("test", "a test cmd")
+            Cmd::new("test")
+                .description("a test cmd")
                 .with_flags(WithDefault::<String, _>::new(
                     "foo",
                     Optional::new(ExpectStringValue::new("name", "n", "A name.")),
