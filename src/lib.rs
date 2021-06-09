@@ -1,379 +1,802 @@
-//! # scrap
-//! A terrible command-line parser to satisfy my Not-Invented-Here syndrome for the spasm assembler
-//!
-//! ## Warnings
-//! Please nobody use this. This is entirely an experiment to support insane
-//! restrictions I've imposed on myself for other projects.
-//!
-//! Instead, please use the wonderful [clap.rs](https://github.com/clap-rs/clap)
-//! project that is better supported, better engineered and WAY more mature...
-//! frankly i don't even know why you are even looking at this.
+pub type EvaluateResult<'a, V> = Result<V, String>;
 
-use parcel::{join, one_of, zero_or_more}; // parcel parser combinators
-use parcel::{MatchStatus, ParseResult, Parser};
-use std::collections::HashMap;
-use std::default;
-use std::fmt;
-use std::path::Path;
+#[derive(Debug, Default)]
+pub struct Cmd<F, H> {
+    name: &'static str,
+    description: &'static str,
+    author: &'static str,
+    version: &'static str,
+    flags: F,
+    handler: H,
+}
 
-pub mod prelude;
+impl Cmd<(), Box<dyn Fn() -> ()>> {
+    pub fn new(name: &'static str) -> Self {
+        Self {
+            name,
+            description: "",
+            author: "",
+            version: "",
+            flags: (),
+            handler: Box::new(|| ()),
+        }
+    }
+}
 
-pub mod flag;
-use flag::{Action, Flag, FlagOrValue, Value, ValueType};
+impl<T, H> Cmd<T, H> {
+    pub fn name(mut self, name: &'static str) -> Self {
+        self.name = name;
+        self
+    }
 
-mod parsers;
-use parsers::ArgumentParser;
-use parsers::{match_any_flag, match_value_type};
+    pub fn description(mut self, description: &'static str) -> Self {
+        self.description = description;
+        self
+    }
+
+    pub fn author(mut self, author: &'static str) -> Self {
+        self.author = author;
+        self
+    }
+
+    pub fn version(mut self, version: &'static str) -> Self {
+        self.version = version;
+        self
+    }
+
+    pub fn with_flags<F>(self, flags: F) -> Cmd<F, H> {
+        Cmd {
+            name: self.name,
+            description: self.description,
+            author: self.author,
+            version: self.version,
+            flags,
+            handler: self.handler,
+        }
+    }
+
+    pub fn with_handler<'a, A, B, NH>(self, handler: NH) -> Cmd<T, NH>
+    where
+        T: Evaluator<'a, A, B>,
+        NH: Fn(B),
+    {
+        Cmd {
+            name: self.name,
+            description: self.description,
+            author: self.author,
+            version: self.version,
+            flags: self.flags,
+            handler: handler,
+        }
+    }
+
+    pub fn dispatch<'a, A, B>(self, flag_values: B)
+    where
+        T: Evaluator<'a, A, B>,
+        H: Fn(B),
+    {
+        (self.handler)(flag_values)
+    }
+}
+
+impl<'a, F, H, B> Evaluator<'a, &'a [&'a str], B> for Cmd<F, H>
+where
+    F: Evaluator<'a, &'a [&'a str], B>,
+{
+    fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<B> {
+        match input.get(0) {
+            Some(&name) if name == self.name => self.flags.evaluate(&input[1..]),
+            _ => Err(format!("no match for command: {}", &self.name)),
+        }
+    }
+}
+
+impl<F, H> Helpable for Cmd<F, H>
+where
+    F: Helpable<Output = FlagHelpCollector>,
+{
+    type Output = String;
+
+    fn help(&self) -> Self::Output {
+        format!(
+            "{}:\n{}\n{}",
+            self.name,
+            self.description,
+            self.flags.help().to_string()
+        )
+    }
+}
+
+pub trait Helpable
+where
+    Self::Output: std::fmt::Display,
+{
+    type Output;
+
+    fn help(&self) -> Self::Output;
+}
+
+/// A constructor type to help with building flags. This should never be used
+/// for anything but static method calls.
+pub struct Flag;
+
+impl Flag {
+    pub fn expect_string(
+        name: &'static str,
+        short_code: &'static str,
+        description: &'static str,
+    ) -> ExpectStringValue {
+        ExpectStringValue::new(name, short_code, description)
+    }
+
+    pub fn store_true(
+        name: &'static str,
+        short_code: &'static str,
+        description: &'static str,
+    ) -> StoreTrue {
+        StoreTrue::new(name, short_code, description)
+    }
+
+    pub fn store_false(
+        name: &'static str,
+        short_code: &'static str,
+        description: &'static str,
+    ) -> StoreFalse {
+        StoreFalse::new(name, short_code, description)
+    }
+}
+
+pub enum FlagHelpCollector {
+    Single(FlagHelpContext),
+    Joined(Box<Self>, Box<Self>),
+}
+
+impl Default for FlagHelpCollector {
+    fn default() -> Self {
+        Self::Single(FlagHelpContext::default())
+    }
+}
+
+impl std::fmt::Display for FlagHelpCollector {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FlagHelpCollector::Single(fhc) => write!(f, "{}", fhc),
+            FlagHelpCollector::Joined(lfhc, rfhc) => write!(f, "{}\n{}", lfhc, rfhc),
+        }
+    }
+}
+
+#[derive(Default)]
+pub struct FlagHelpContext {
+    name: &'static str,
+    short_code: &'static str,
+    description: &'static str,
+    /// Additional String values to be appended after the description.
+    modifiers: Vec<String>,
+}
+
+impl FlagHelpContext {
+    pub fn new(
+        name: &'static str,
+        short_code: &'static str,
+        description: &'static str,
+        modifiers: Vec<String>,
+    ) -> Self {
+        Self {
+            name,
+            short_code,
+            description,
+            modifiers,
+        }
+    }
+
+    pub fn with_modifier(mut self, modifier: String) -> Self {
+        self.modifiers.push(modifier);
+        self
+    }
+}
+
+impl std::fmt::Display for FlagHelpContext {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.modifiers.is_empty() {
+            write!(
+                f,
+                "--{}, -{}\t{}",
+                self.name, self.short_code, self.description,
+            )
+        } else {
+            write!(
+                f,
+                "--{}, -{}\t{}\t[{}]",
+                self.name,
+                self.short_code,
+                self.description,
+                self.modifiers
+                    .iter()
+                    .map(|modifier| format!("({})", modifier))
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            )
+        }
+    }
+}
+
+pub trait Evaluator<'a, A, B> {
+    fn evaluate(&self, input: A) -> EvaluateResult<'a, B>;
+
+    fn join<E, C>(self, evaluator2: E) -> BoxedEvaluator<'a, A, (B, C)>
+    where
+        Self: Sized + Evaluator<'a, A, B> + 'a,
+        E: Evaluator<'a, A, C> + 'a,
+        A: Copy + 'a,
+    {
+        BoxedEvaluator::new(Join::<Self, E>::new(self, evaluator2))
+    }
+}
+
+pub struct BoxedEvaluator<'a, A, B> {
+    evaluator: Box<dyn Evaluator<'a, A, B> + 'a>,
+}
+
+impl<'a, A, B> BoxedEvaluator<'a, A, B> {
+    pub fn new<E>(evaluator: E) -> Self
+    where
+        E: Evaluator<'a, A, B> + 'a,
+    {
+        BoxedEvaluator {
+            evaluator: Box::new(evaluator),
+        }
+    }
+}
+
+impl<'a, A, B> Evaluator<'a, A, B> for BoxedEvaluator<'a, A, B> {
+    fn evaluate(&self, input: A) -> EvaluateResult<'a, B> {
+        self.evaluator.evaluate(input)
+    }
+}
+
+impl<'a, F, A, B> Evaluator<'a, A, B> for F
+where
+    A: 'a,
+    F: Fn(A) -> EvaluateResult<'a, B>,
+{
+    fn evaluate(&self, input: A) -> EvaluateResult<'a, B> {
+        self(input)
+    }
+}
+
+#[derive(Debug)]
+pub struct Join<E1, E2> {
+    evaluator1: E1,
+    evaluator2: E2,
+}
+
+impl<E1, E2> Join<E1, E2> {
+    pub fn new(evaluator1: E1, evaluator2: E2) -> Self {
+        Self {
+            evaluator1,
+            evaluator2,
+        }
+    }
+}
+
+impl<'a, E1, E2, A, B, C> Evaluator<'a, A, (B, C)> for Join<E1, E2>
+where
+    A: Copy + std::borrow::Borrow<A> + 'a,
+    E1: Evaluator<'a, A, B>,
+    E2: Evaluator<'a, A, C>,
+{
+    fn evaluate(&self, input: A) -> EvaluateResult<'a, (B, C)> {
+        self.evaluator1
+            .evaluate(input)
+            .map_err(|e| format!("failed to map left side: {}", e))
+            .and_then(|e1_res| match self.evaluator2.evaluate(input) {
+                Ok(e2_res) => Ok((e1_res, e2_res)),
+                Err(e) => Err(format!("failed to map right side: {}", e)),
+            })
+    }
+}
+
+impl<E1, E2> Helpable for Join<E1, E2>
+where
+    E1: Helpable<Output = FlagHelpCollector>,
+    E2: Helpable<Output = FlagHelpCollector>,
+{
+    type Output = FlagHelpCollector;
+
+    fn help(&self) -> Self::Output {
+        FlagHelpCollector::Joined(
+            Box::new(self.evaluator1.help()),
+            Box::new(self.evaluator2.help()),
+        )
+    }
+}
+
+/// A trait that signifies if a type can be assigned a default value.
+pub trait Defaultable
+where
+    Self: Sized,
+{
+    fn with_default<D>(self, default: D) -> WithDefault<D, Self> {
+        WithDefault::new(default, self)
+    }
+
+    fn optional(self) -> Optional<Self> {
+        Optional::new(self)
+    }
+}
+
+#[derive(Debug)]
+pub struct WithDefault<B, E> {
+    default: B,
+    evaluator: E,
+}
+
+impl<B, E> WithDefault<B, E> {
+    pub fn new<D>(default: D, evaluator: E) -> Self
+    where
+        D: Into<B>,
+    {
+        Self {
+            default: Into::<B>::into(default),
+            evaluator,
+        }
+    }
+}
+
+impl<'a, E, A, B> Evaluator<'a, A, B> for WithDefault<B, E>
+where
+    A: 'a,
+    B: Clone,
+    E: Evaluator<'a, A, Option<B>>,
+{
+    fn evaluate(&self, input: A) -> EvaluateResult<'a, B> {
+        self.evaluator
+            .evaluate(input)
+            .map(|op| op.unwrap_or(self.default.clone()))
+    }
+}
+
+impl<B, E> Helpable for WithDefault<B, E>
+where
+    B: Clone + std::fmt::Debug,
+    E: Helpable + Helpable<Output = FlagHelpCollector> + Defaultable,
+{
+    type Output = FlagHelpCollector;
+
+    fn help(&self) -> Self::Output {
+        match self.evaluator.help() {
+            FlagHelpCollector::Single(fhc) => FlagHelpCollector::Single(
+                fhc.with_modifier(format!("default: {:?}", self.default.clone())),
+            ),
+            // this case should never be hit as joined is not defaultable
+            fhcj @ FlagHelpCollector::Joined(_, _) => fhcj,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct Optional<E> {
+    evaluator: E,
+}
+
+impl<E> Defaultable for Optional<E> where E: Defaultable {}
+
+impl<E> Optional<E> {
+    pub fn new(evaluator: E) -> Self {
+        Self { evaluator }
+    }
+}
+
+impl<'a, E, A, B> Evaluator<'a, A, Option<B>> for Optional<E>
+where
+    A: 'a,
+    E: Evaluator<'a, A, B>,
+{
+    fn evaluate(&self, input: A) -> EvaluateResult<'a, Option<B>> {
+        Ok(self.evaluator.evaluate(input).map_or(None, |b| Some(b)))
+    }
+}
+
+impl<E> Helpable for Optional<E>
+where
+    E: Helpable<Output = FlagHelpCollector>,
+{
+    type Output = FlagHelpCollector;
+
+    fn help(&self) -> Self::Output {
+        match self.evaluator.help() {
+            FlagHelpCollector::Single(fhc) => {
+                FlagHelpCollector::Single(fhc.with_modifier("optional".to_string()))
+            }
+            // this case should never be hit as joined is not defaultable
+            fhcj @ FlagHelpCollector::Joined(_, _) => fhcj,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct ExpectStringValue {
+    name: &'static str,
+    short_code: &'static str,
+    description: &'static str,
+}
+
+impl ExpectStringValue {
+    #[allow(dead_code)]
+    pub fn new(name: &'static str, short_code: &'static str, description: &'static str) -> Self {
+        Self {
+            name,
+            short_code,
+            description,
+        }
+    }
+}
+
+impl Defaultable for ExpectStringValue {}
+
+impl<'a> Evaluator<'a, &'a [&'a str], String> for ExpectStringValue {
+    fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, String> {
+        input[..]
+            .iter()
+            .enumerate()
+            .find(|(_, &arg)| {
+                (arg == format!("{}{}", "--", self.name))
+                    || (arg == format!("{}{}", "-", self.short_code))
+            })
+            // Only need the index.
+            .map(|(idx, _)| idx)
+            .and_then(|idx| input[..].get(idx + 1).map(|&v| v.to_string()))
+            .ok_or("No matching value".to_string())
+    }
+}
+
+impl Helpable for ExpectStringValue {
+    type Output = FlagHelpCollector;
+
+    fn help(&self) -> Self::Output {
+        FlagHelpCollector::Single(FlagHelpContext::new(
+            self.name,
+            self.short_code,
+            self.description,
+            Vec::new(),
+        ))
+    }
+}
+
+#[derive(Debug)]
+pub struct StoreTrue {
+    name: &'static str,
+    short_code: &'static str,
+    description: &'static str,
+}
+
+impl Defaultable for StoreTrue {}
+
+impl StoreTrue {
+    #[allow(dead_code)]
+    pub fn new(name: &'static str, short_code: &'static str, description: &'static str) -> Self {
+        Self {
+            name,
+            short_code,
+            description,
+        }
+    }
+}
+
+impl<'a> Evaluator<'a, &'a [&'a str], bool> for StoreTrue {
+    fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, bool> {
+        input[..]
+            .iter()
+            .enumerate()
+            .find(|(_, &arg)| {
+                (arg == format!("{}{}", "--", self.name))
+                    || (arg == format!("{}{}", "-", self.short_code))
+            })
+            .map(|_| true)
+            .ok_or("No matching value".to_string())
+    }
+}
+
+impl Helpable for StoreTrue {
+    type Output = FlagHelpCollector;
+
+    fn help(&self) -> Self::Output {
+        FlagHelpCollector::Single(FlagHelpContext::new(
+            self.name,
+            self.short_code,
+            self.description,
+            Vec::new(),
+        ))
+    }
+}
+
+#[derive(Debug)]
+pub struct StoreFalse {
+    name: &'static str,
+    short_code: &'static str,
+    description: &'static str,
+}
+
+impl Defaultable for StoreFalse {}
+
+impl StoreFalse {
+    #[allow(dead_code)]
+    pub fn new(name: &'static str, short_code: &'static str, description: &'static str) -> Self {
+        Self {
+            name,
+            short_code,
+            description,
+        }
+    }
+}
+
+impl<'a> Evaluator<'a, &'a [&'a str], bool> for StoreFalse {
+    fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, bool> {
+        input[..]
+            .iter()
+            .enumerate()
+            .find(|(_, &arg)| {
+                (arg == format!("{}{}", "--", self.name))
+                    || (arg == format!("{}{}", "-", self.short_code))
+            })
+            .map(|_| false)
+            .ok_or("No matching value".to_string())
+    }
+}
+
+impl Helpable for StoreFalse {
+    type Output = FlagHelpCollector;
+
+    fn help(&self) -> Self::Output {
+        FlagHelpCollector::Single(FlagHelpContext::new(
+            self.name,
+            self.short_code,
+            self.description,
+            Vec::new(),
+        ))
+    }
+}
 
 #[cfg(test)]
-mod tests;
+mod tests {
+    use super::*;
 
-/// Config represents a String -> Value mapping as parsed from flags.
-pub type Config = HashMap<String, Value>;
-
-fn config_from_string_value_tuple(value_pairing: Vec<(String, Value)>) -> Config {
-    let mut cm = Config::new();
-
-    for (k, v) in value_pairing.into_iter() {
-        cm.insert(k, v);
-    }
-
-    cm
-}
-
-fn config_from_defaults(flags: &[Flag]) -> Config {
-    let mut cm = Config::new();
-
-    for f in flags.iter() {
-        match f.default_value {
-            Some(ref v) => cm.insert(f.name.clone(), v.clone()),
-            None => continue,
-        };
-    }
-
-    cm
-}
-
-/// Represents the result of a dispatch function call.
-pub type DispatchFnResult = Result<i32, String>;
-
-/// DispatchFn stores an invocable function to be called by the cli
-pub type DispatchFn = dyn Fn(Config) -> DispatchFnResult;
-
-/// CmdDispatcher captures a parsed config and a handler function to carry forward
-/// commands.
-pub struct CmdDispatcher {
-    pub config: Config,
-    pub handler_func: Box<DispatchFn>,
-}
-
-impl CmdDispatcher {
-    pub fn new(config: Config, handler_func: Box<DispatchFn>) -> Self {
-        CmdDispatcher {
-            config,
-            handler_func,
-        }
-    }
-
-    /// Explicilty converts a dispatcher to its enclosed config.
-    pub fn to_config(self) -> Config {
-        self.config
-    }
-
-    /// dispatch accepts a config as an argument to be passed on to the
-    /// commands contained handler method.
-    pub fn dispatch(self) -> Result<i32, String> {
-        (self.handler_func)(self.config)
-    }
-}
-
-impl fmt::Debug for CmdDispatcher {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("CmdDispatcher")
-            .field("handler_func", &"Fn(Config) -> DispatchFnResult")
-            .finish()
-    }
-}
-
-/// CmdGroup provides a group of a root cmd and child subcommands.
-pub struct CmdGroup {
-    command: Cmd,
-    subcommands: Vec<Cmd>,
-}
-
-impl CmdGroup {
-    pub fn new(cmd: Cmd) -> Self {
-        Self {
-            command: cmd,
-            subcommands: Vec::new(),
-        }
-    }
-
-    /// Set the command name.
-    pub fn name(mut self, name: &str) -> Self {
-        self.command.name = name.to_string();
-        self
-    }
-
-    /// Set the author name.
-    pub fn author(mut self, author: &str) -> Self {
-        self.command.author = author.to_string();
-        self
-    }
-
-    /// Set the short description.
-    pub fn description(mut self, desc: &str) -> Self {
-        self.command.description = desc.to_string();
-        self
-    }
-
-    /// Set the version.
-    pub fn version(mut self, vers: &str) -> Self {
-        self.command.version = vers.to_string();
-        self
-    }
-
-    /// Set a flag.
-    pub fn flag(mut self, f: Flag) -> Self {
-        self.command.flags.push(f);
-        self
-    }
-
-    /// Set a cmd handler.
-    pub fn handler(mut self, handler: Box<DispatchFn>) -> Self {
-        self.command.handler_func = handler;
-        self
-    }
-
-    /// add a subcommand to the CmdGroup
-    pub fn subcommand(mut self, sc: Cmd) -> Self {
-        self.subcommands.push(sc);
-        self
-    }
-
-    pub fn flatten(self) -> Vec<Cmd> {
-        let mut cv: Vec<Cmd> = vec![self.command];
-        cv.extend(self.subcommands.into_iter());
-        cv
-    }
-}
-
-impl fmt::Display for CmdGroup {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}\n\nSubcommands:\n{}",
-            &self.command,
-            self.subcommands
-                .iter()
-                .map(|f| format!("    {:<16}\t{}", f.name, f.description))
-                .collect::<Vec<String>>()
-                .join("\n")
+    #[test]
+    fn cmd_should_type_validate_handler() {
+        assert_eq!(
+            Ok(("foo".to_string(), "info".to_string())),
+            Cmd::new("test")
+                .description("a test cmd")
+                .with_flags(
+                    Flag::expect_string("name", "n", "A name.")
+                        .optional()
+                        .with_default("foo".to_string())
+                        .join(Flag::expect_string(
+                            "log-level",
+                            "l",
+                            "A given log level setting.",
+                        )),
+                )
+                .with_handler(|(l, r)| {
+                    format!("(Left: {}, Right: {})", &l, &r);
+                })
+                .evaluate(&["test", "-l", "info"][..])
         )
     }
-}
 
-impl CmdGroup {
-    /// run expects a Vec<String> representing all argumets provided from
-    /// std::env::Args, including the base command and attempts to parse it
-    /// into a corresponding Command Dispatcher.
-    pub fn run(self, input: Vec<String>) -> Result<CmdDispatcher, String> {
-        let ap_res = match ArgumentParser::new().parse(input)? {
-            MatchStatus::Match((_, res)) => Ok(res),
-            MatchStatus::NoMatch(remainder) => {
-                Err(format!("unable to parse full arg string: {:?}", remainder))
-            }
-        }?;
+    #[test]
+    fn cmd_should_dispatch_a_valid_handler() {
+        let cmd = Cmd::new("test")
+            .description("a test cmd")
+            .with_flags(
+                Flag::expect_string("name", "n", "A name.")
+                    .optional()
+                    .with_default("foo".to_string())
+                    .join(
+                        Flag::store_true("debug", "d", "run command in debug mode.")
+                            .optional()
+                            .with_default(false),
+                    ),
+            )
+            .with_handler(|(l, debug)| {
+                format!("(Left: {}, Right: {})", &l, debug);
+            });
 
-        let mut cm = config_from_defaults(&self.command.flags);
-        let mut remainder: &[FlagOrValue] = &ap_res;
-        let cmdgroup_help_string = format!("{}", &self);
-
-        for (offset, cmd) in self.flatten().into_iter().enumerate() {
-            match cmd.parse(remainder)? {
-                MatchStatus::Match((rem, conf)) if rem.is_empty() => {
-                    cm.extend(config_from_defaults(&cmd.flags)); // set defaults
-                    cm.extend(conf);
-                    return Ok(CmdDispatcher::new(
-                        cm,
-                        Box::new(move |cm| {
-                            if Some(&Value::Bool(true)) == cm.get("help") {
-                                println!(
-                                    "{}",
-                                    if offset == 0 {
-                                        format!("{}", &cmdgroup_help_string)
-                                    } else {
-                                        format!("{}", &cmd)
-                                    }
-                                );
-                                Ok(0)
-                            } else if Some(&Value::Bool(true)) == cm.get("version") {
-                                println!("{}", &cmd.version);
-                                Ok(0)
-                            } else {
-                                (cmd.handler_func)(cm)
-                            }
-                        }),
-                    ));
-                }
-                MatchStatus::Match((rem, conf)) => {
-                    remainder = rem;
-                    cm.extend(conf);
-                }
-                MatchStatus::NoMatch(rem) if rem.is_empty() => {
-                    return Err(format!("unable to parse full arg string: {:?}", rem))
-                }
-                MatchStatus::NoMatch(rem) => {
-                    remainder = rem;
-                }
-            }
-        }
-
-        return Err(format!("unable to parse full arg string: {:?}", remainder));
-    }
-}
-
-/// Cmd functions as the wrapper for a command line tool storing information
-/// about the tool, author, version and a brief description.
-pub struct Cmd {
-    name: String,
-    author: String,
-    description: String,
-    version: String,
-    flags: Vec<Flag>,
-    handler_func: Box<DispatchFn>,
-}
-
-impl Cmd {
-    pub fn new() -> Self {
-        Self::default()
+        assert_eq!(
+            Ok(()),
+            cmd.evaluate(&["test", "-l", "info"][..])
+                .map(|flag_values| cmd.dispatch(flag_values))
+        );
     }
 
-    /// Set the command name.
-    pub fn name(mut self, name: &str) -> Self {
-        self.name = name.to_string();
-        self
-    }
-
-    /// Set the author name.
-    pub fn author(mut self, author: &str) -> Self {
-        self.author = author.to_string();
-        self
-    }
-
-    /// Set the short description.
-    pub fn description(mut self, desc: &str) -> Self {
-        self.description = desc.to_string();
-        self
-    }
-
-    /// Set the version.
-    pub fn version(mut self, vers: &str) -> Self {
-        self.version = vers.to_string();
-        self
-    }
-
-    /// Set a flag.
-    pub fn flag(mut self, f: Flag) -> Self {
-        self.flags.push(f);
-        self
-    }
-
-    /// Set a cmd handler.
-    pub fn handler(mut self, handler: Box<DispatchFn>) -> Self {
-        self.handler_func = handler;
-        self
-    }
-
-    /// add a subcommand, implicily converting to a CmdGroup.
-    pub fn subcommand(self, sc: Cmd) -> CmdGroup {
-        let mut cg = CmdGroup::new(self);
-        cg.subcommands.push(sc);
-        cg
-    }
-}
-
-impl fmt::Display for Cmd {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let name = if !&self.name.is_empty() {
-            format!(" {} ", &self.name)
-        } else {
-            "".to_string()
-        };
-
-        let desc = if !self.description.is_empty() {
-            format!("{}\n\n", &self.description)
-        } else {
-            "\n".to_string()
-        };
-
-        write!(
-            f,
-            "Usage:{}[OPTIONS]\n{}Flags:\n{}",
-            name,
-            desc,
-            self.flags
-                .iter()
-                .map(|f| format!("    {}", f))
-                .collect::<Vec<String>>()
-                .join("\n")
+    #[test]
+    fn should_generate_expected_helpstring_for_given_command() {
+        assert_eq!(
+            "test:\na test cmd\n--name, -n\tA name.\t[(optional), (default: \"foo\")]".to_string(),
+            Cmd::new("test")
+                .description("a test cmd")
+                .with_flags(WithDefault::<String, _>::new(
+                    "foo",
+                    Optional::new(ExpectStringValue::new("name", "n", "A name.")),
+                ),)
+                .help()
+                .to_string()
         )
     }
-}
 
-impl default::Default for Cmd {
-    fn default() -> Self {
-        Cmd {
-            name: String::new(),
-            author: String::new(),
-            description: String::new(),
-            version: String::new(),
-            flags: vec![Flag::new()
-                .name("help")
-                .short_code("h")
-                .help_string("print help string")
-                .action(Action::StoreTrue)
-                .value_type(ValueType::Bool)],
-            handler_func: Box::new(|_| Err("Unimplemented".to_string())),
-        }
+    #[test]
+    fn should_find_valid_string_flag() {
+        assert_eq!(
+            Ok("foo".to_string()),
+            ExpectStringValue::new("name", "n", "A name.")
+                .evaluate(&["hello", "--name", "foo"][..])
+        );
+
+        assert_eq!(
+            Ok("foo".to_string()),
+            ExpectStringValue::new("name", "n", "A name.").evaluate(&["hello", "-n", "foo"][..])
+        );
     }
-}
 
-impl Cmd {
-    /// Run Converts the command to a CmdGroup node in the cli and then calls
-    /// that types corresponding run method.
-    pub fn run(self, input: Vec<String>) -> Result<CmdDispatcher, String> {
-        CmdGroup::new(self).run(input)
+    #[test]
+    fn should_find_valid_store_true_flag() {
+        assert_eq!(
+            Ok(true),
+            StoreTrue::new("debug", "d", "Run in debug mode.").evaluate(&["hello", "--debug"][..])
+        );
+
+        assert_eq!(
+            Ok(true),
+            StoreTrue::new("debug", "d", "Run in debug mode.").evaluate(&["hello", "-d"][..])
+        );
+
+        // should appropriately default.
+        assert_eq!(
+            Ok(false),
+            WithDefault::new(
+                false,
+                Optional::new(StoreTrue::new("debug", "d", "Run in debug mode."))
+            )
+            .evaluate(&["hello"][..])
+        );
     }
-}
 
-impl<'a> Parser<'a, &'a [FlagOrValue], Config> for Cmd {
-    fn parse(&self, input: &'a [FlagOrValue]) -> ParseResult<'a, &'a [FlagOrValue], Config> {
-        let preparse_input = input;
-        match join(
-            match_value_type(ValueType::Str),
-            zero_or_more(one_of(self.flags.clone())),
+    #[test]
+    fn should_find_valid_store_false_flag() {
+        assert_eq!(
+            Ok(false),
+            StoreFalse::new("no-wait", "n", "don't wait for a response.")
+                .evaluate(&["hello", "--no-wait"][..])
+        );
+
+        assert_eq!(
+            Ok(false),
+            StoreFalse::new("no-wait", "n", "don't wait for a response.")
+                .evaluate(&["hello", "-n"][..])
+        );
+
+        // should appropriately default.
+        assert_eq!(
+            Ok(true),
+            WithDefault::new(
+                true,
+                Optional::new(StoreFalse::new(
+                    "no-wait",
+                    "n",
+                    "don't wait for a response."
+                ))
+            )
+            .evaluate(&["hello"][..])
+        );
+    }
+
+    #[test]
+    fn should_generate_expected_helpstring_for_given_string_check() {
+        assert_eq!(
+            "--name, -n\tA name.".to_string(),
+            format!("{}", ExpectStringValue::new("name", "n", "A name.").help())
         )
-        .parse(input)?
-        {
-            MatchStatus::Match((remainder, (Value::Str(cmd), res)))
-                if Path::new(&cmd).ends_with(&self.name) =>
-            {
-                match match_any_flag().parse(remainder)? {
-                    MatchStatus::Match((_remaining_fov, _)) => {
-                        Err("unable to parse all flags".to_string())
-                    }
-                    MatchStatus::NoMatch(remaining_fov) => Ok(MatchStatus::Match((
-                        remaining_fov,
-                        config_from_string_value_tuple(res),
-                    ))),
-                }
-            }
-            MatchStatus::Match(_) => Ok(MatchStatus::NoMatch(preparse_input)),
-            MatchStatus::NoMatch(remaining_fov) if remaining_fov.is_empty() => {
-                Ok(MatchStatus::NoMatch(remaining_fov))
-            }
-            MatchStatus::NoMatch(remaining_fov) => Ok(MatchStatus::NoMatch(remaining_fov)),
-        }
+    }
+
+    #[test]
+    fn should_find_joined_evaluators() {
+        let input = vec!["hello", "-n", "foo", "-l", "info"];
+        assert_eq!(
+            Ok(("foo".to_string(), "info".to_string())),
+            Join::new(
+                ExpectStringValue::new("name", "n", "A name."),
+                ExpectStringValue::new("log-level", "l", "A given log level setting."),
+            )
+            .evaluate(&input[..])
+        );
+
+        assert_eq!(
+            Ok(("foo".to_string(), "info".to_string())),
+            Flag::expect_string("name", "n", "A name.")
+                .join(ExpectStringValue::new(
+                    "log-level",
+                    "l",
+                    "A given log level setting."
+                ))
+                .evaluate(&input[..])
+        );
+    }
+
+    #[test]
+    fn should_optionally_match_a_value() {
+        let input = vec!["hello", "-n", "foo"];
+
+        assert_eq!(
+            Ok(Some("foo".to_string())),
+            Optional::new(ExpectStringValue::new("name", "n", "A name.")).evaluate(&input[..])
+        );
+
+        // validate boxed syntax works
+        assert_eq!(
+            Ok(Some("foo".to_string())),
+            ExpectStringValue::new("name", "n", "A name.")
+                .optional()
+                .evaluate(&input[..])
+        );
+
+        assert_eq!(
+            Ok(None),
+            Optional::new(ExpectStringValue::new(
+                "log-level",
+                "l",
+                "A given log level setting."
+            ))
+            .evaluate(&input[..])
+        );
+    }
+
+    #[test]
+    fn should_generate_expected_helpstring_for_optional_flag() {
+        assert_eq!(
+            "--log-level, -l\tA given log level setting.\t[(optional)]".to_string(),
+            Optional::new(ExpectStringValue::new(
+                "log-level",
+                "l",
+                "A given log level setting."
+            ))
+            .help()
+            .to_string()
+        )
+    }
+
+    #[test]
+    fn should_default_an_optional_match_when_assigned() {
+        let input = vec!["hello", "--log-level", "info"];
+
+        assert_eq!(
+            Ok("foo".to_string()),
+            WithDefault::new(
+                "foo",
+                Optional::new(ExpectStringValue::new("name", "n", "A name."))
+            )
+            .evaluate(&input[..])
+        );
+
+        assert_eq!(
+            Ok("foo".to_string()),
+            Flag::expect_string("name", "n", "A name.")
+                .optional()
+                .with_default("foo".to_string())
+                .evaluate(&input[..])
+        );
+    }
+
+    #[test]
+    fn should_generate_expected_helpstring_for_optional_with_default_flag() {
+        assert_eq!(
+            "--name, -n\tA name.\t[(optional), (default: \"foo\")]".to_string(),
+            WithDefault::<String, _>::new(
+                "foo",
+                Optional::new(ExpectStringValue::new("name", "n", "A name."))
+            )
+            .help()
+            .to_string()
+        )
     }
 }
