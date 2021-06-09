@@ -1,15 +1,16 @@
 pub type EvaluateResult<'a, V> = Result<V, String>;
 
 #[derive(Debug, Default)]
-pub struct Cmd<F> {
+pub struct Cmd<F, H> {
     name: &'static str,
     description: &'static str,
     author: &'static str,
     version: &'static str,
     flags: F,
+    handler: H,
 }
 
-impl Cmd<()> {
+impl Cmd<(), Box<dyn Fn() -> ()>> {
     pub fn new(name: &'static str) -> Self {
         Self {
             name,
@@ -17,11 +18,12 @@ impl Cmd<()> {
             author: "",
             version: "",
             flags: (),
+            handler: Box::new(|| ()),
         }
     }
 }
 
-impl<T> Cmd<T> {
+impl<T, H> Cmd<T, H> {
     pub fn name(mut self, name: &'static str) -> Self {
         self.name = name;
         self
@@ -42,18 +44,34 @@ impl<T> Cmd<T> {
         self
     }
 
-    pub fn with_flags<F>(self, flags: F) -> Cmd<F> {
+    pub fn with_flags<F>(self, flags: F) -> Cmd<F, H> {
         Cmd {
             name: self.name,
             description: self.description,
             author: self.author,
             version: self.version,
             flags,
+            handler: self.handler,
+        }
+    }
+
+    pub fn with_handler<'a, A, B, NH>(self, handler: NH) -> Cmd<T, NH>
+    where
+        T: Evaluator<'a, A, B>,
+        NH: Fn(B),
+    {
+        Cmd {
+            name: self.name,
+            description: self.description,
+            author: self.author,
+            version: self.version,
+            flags: self.flags,
+            handler: handler,
         }
     }
 }
 
-impl<'a, F, B> Evaluator<'a, &'a [&'a str], B> for Cmd<F>
+impl<'a, F, H, B> Evaluator<'a, &'a [&'a str], B> for Cmd<F, H>
 where
     F: Evaluator<'a, &'a [&'a str], B>,
 {
@@ -65,7 +83,7 @@ where
     }
 }
 
-impl<F> Helpable for Cmd<F>
+impl<F, H> Helpable for Cmd<F, H>
 where
     F: Helpable<Output = FlagHelpCollector>,
 {
@@ -425,6 +443,29 @@ impl Helpable for ExpectStringValue {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn cmd_should_type_validate_handler() {
+        assert_eq!(
+            Ok(("foo".to_string(), "info".to_string())),
+            Cmd::new("test")
+                .description("a test cmd")
+                .with_flags(
+                    Flag::expect_string("name", "n", "A name.")
+                        .optional()
+                        .with_default("foo".to_string())
+                        .join(Flag::expect_string(
+                            "log-level",
+                            "l",
+                            "A given log level setting.",
+                        )),
+                )
+                .with_handler(|(l, r)| {
+                    println!("(Left: {}, Right: {})", &l, &r);
+                })
+                .evaluate(&["test", "-l", "info"][..])
+        )
+    }
 
     #[test]
     fn should_evaluate_command_with_valid_sub_flags() {
