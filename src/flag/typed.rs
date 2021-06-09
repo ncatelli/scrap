@@ -343,7 +343,7 @@ where
     fn help(&self) -> Self::Output {
         match self.evaluator.help() {
             FlagHelpCollector::Single(fhc) => FlagHelpCollector::Single(
-                fhc.with_modifier(format!("Default: {:?}", self.default.clone())),
+                fhc.with_modifier(format!("default: {:?}", self.default.clone())),
             ),
             // this case should never be hit as joined is not defaultable
             fhcj @ FlagHelpCollector::Joined(_, _) => fhcj,
@@ -502,7 +502,7 @@ mod tests {
     #[test]
     fn should_generate_expected_helpstring_for_given_command() {
         assert_eq!(
-            "test:\na test cmd\n--name, -n\tA name.\t[(optional), (Default: \"foo\")]".to_string(),
+            "test:\na test cmd\n--name, -n\tA name.\t[(optional), (default: \"foo\")]".to_string(),
             Cmd::new("test")
                 .description("a test cmd")
                 .with_flags(WithDefault::<String, _>::new(
@@ -629,7 +629,7 @@ mod tests {
     #[test]
     fn should_generate_expected_helpstring_for_optional_with_default_flag() {
         assert_eq!(
-            "--name, -n\tA name.\t[(optional), (Default: \"foo\")]".to_string(),
+            "--name, -n\tA name.\t[(optional), (default: \"foo\")]".to_string(),
             WithDefault::<String, _>::new(
                 "foo",
                 Optional::new(ExpectStringValue::new("name", "n", "A name."))
