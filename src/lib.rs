@@ -1,3 +1,5 @@
+pub mod prelude;
+
 pub type EvaluateResult<'a, V> = Result<V, String>;
 
 #[derive(Debug, Default)]
@@ -84,8 +86,11 @@ where
     F: Evaluator<'a, &'a [&'a str], B>,
 {
     fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<B> {
-        match input.get(0) {
-            Some(&name) if name == self.name => self.flags.evaluate(&input[1..]),
+        match input
+            .get(0)
+            .map(|&bin| std::path::Path::new(bin).file_name())
+        {
+            Some(Some(name)) if name == self.name => self.flags.evaluate(&input[1..]),
             _ => Err(format!("no match for command: {}", &self.name)),
         }
     }
