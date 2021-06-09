@@ -7,11 +7,21 @@ pub struct Cmd<F> {
     flags: F,
 }
 
-impl<F> Cmd<F> {
-    pub fn new(name: &'static str, description: &'static str, flags: F) -> Self {
+impl Cmd<()> {
+    pub fn new(name: &'static str, description: &'static str) -> Self {
         Self {
             name,
             description,
+            flags: (),
+        }
+    }
+}
+
+impl<T> Cmd<T> {
+    pub fn with_flags<F>(self, flags: F) -> Cmd<F> {
+        Cmd {
+            name: self.name,
+            description: self.description,
             flags,
         }
     }
@@ -394,32 +404,43 @@ mod tests {
     fn should_evaluate_command_with_valid_sub_flags() {
         assert_eq!(
             Ok("foo".to_string()),
-            Cmd::new(
-                "test",
-                "a test cmd",
-                WithDefault::<String, _>::new(
-                    "foo",
-                    Optional::new(ExpectStringValue::new("name", "n", "A name.")),
-                ),
-            )
-            .evaluate(&vec!["test"][..])
-        )
+            Cmd::new("test", "a test cmd")
+                .with_flags(
+                    Flag::expect_string("name", "n", "A name.")
+                        .optional()
+                        .with_default("foo".to_string())
+                )
+                .evaluate(&["test"][..])
+        );
+
+        assert_eq!(
+            Ok(("foo".to_string(), "info".to_string())),
+            Cmd::new("test", "a test cmd")
+                .with_flags(
+                    Flag::expect_string("name", "n", "A name.")
+                        .optional()
+                        .with_default("foo".to_string())
+                        .join(Flag::expect_string(
+                            "log-level",
+                            "l",
+                            "A given log level setting."
+                        ))
+                )
+                .evaluate(&["test", "-l", "info"][..])
+        );
     }
 
     #[test]
     fn should_generate_expected_helpstring_for_given_command() {
         assert_eq!(
             "test:\na test cmd\n--name, -n\tA name.\t[(optional), (Default: \"foo\")]".to_string(),
-            Cmd::new(
-                "test",
-                "a test cmd",
-                WithDefault::<String, _>::new(
+            Cmd::new("test", "a test cmd")
+                .with_flags(WithDefault::<String, _>::new(
                     "foo",
                     Optional::new(ExpectStringValue::new("name", "n", "A name.")),
-                ),
-            )
-            .help()
-            .to_string()
+                ),)
+                .help()
+                .to_string()
         )
     }
 
