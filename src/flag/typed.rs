@@ -1,17 +1,19 @@
+use std::fmt::write;
+
 pub type EvaluateResult<'a, V> = Result<V, String>;
 
 #[derive(Debug)]
 pub struct Cmd<F> {
     name: &'static str,
-    descriptions: &'static str,
+    description: &'static str,
     flags: F,
 }
 
 impl<F> Cmd<F> {
-    pub fn new(name: &'static str, descriptions: &'static str, flags: F) -> Self {
+    pub fn new(name: &'static str, description: &'static str, flags: F) -> Self {
         Self {
             name,
-            descriptions,
+            description,
             flags,
         }
     }
@@ -31,40 +33,17 @@ where
 
 impl<F> Helpable for Cmd<F>
 where
-    F: std::fmt::Display,
+    F: Helpable<Output = FlagHelpCollector>,
 {
     type Output = String;
 
     fn help(&self) -> Self::Output {
-        let fhelp = self.flags.to_string();
-        CmdHelpContext::new(self.name, self.descriptions, fhelp).to_string()
-    }
-}
-
-#[derive(Default)]
-pub struct CmdHelpContext<F> {
-    name: &'static str,
-    description: &'static str,
-    /// Additional String values to be appended after the description.
-    flags: F,
-}
-
-impl<F> CmdHelpContext<F> {
-    pub fn new(name: &'static str, description: &'static str, flags: F) -> Self {
-        Self {
-            name,
-            description,
-            flags,
-        }
-    }
-}
-
-impl<F> std::fmt::Display for CmdHelpContext<F>
-where
-    F: std::fmt::Display,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}:\n{}\n{}", self.name, self.description, self.flags)
+        format!(
+            "{}:\n{}\n{}",
+            self.name,
+            self.description,
+            self.flags.help().to_string()
+        )
     }
 }
 
@@ -77,36 +56,23 @@ where
     fn help(&self) -> Self::Output;
 }
 
-#[derive(Default, Debug, Clone, PartialEq)]
-pub struct CmdHelpCollector {
-    tab_depth: usize,
-    inner: Vec<String>,
+pub enum FlagHelpCollector {
+    Single(FlagHelpContext),
+    Joined(Box<Self>, Box<Self>),
 }
 
-impl CmdHelpCollector {
-    pub fn new(tab_depth: usize, inner: Vec<String>) -> Self {
-        Self { tab_depth, inner }
+impl Default for FlagHelpCollector {
+    fn default() -> Self {
+        Self::Single(FlagHelpContext::default())
     }
 }
 
-impl std::fmt::Display for CmdHelpCollector {
+impl std::fmt::Display for FlagHelpCollector {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let tab_str: String = "\t"
-            .chars()
-            .into_iter()
-            .cycle()
-            .take(self.tab_depth)
-            .collect();
-
-        write!(
-            f,
-            "{}",
-            self.inner
-                .iter()
-                .map(|hs| format!("{}{}", &tab_str, hs))
-                .collect::<Vec<String>>()
-                .join("\n")
-        )
+        match self {
+            FlagHelpCollector::Single(fhc) => write!(f, "{}", fhc),
+            FlagHelpCollector::Joined(lfhc, rfhc) => write!(f, "{}\n{}", lfhc, rfhc),
+        }
     }
 }
 
@@ -242,18 +208,15 @@ where
 
 impl<E1, E2> Helpable for Join<E1, E2>
 where
-    E1: Helpable,
-    E2: Helpable,
+    E1: Helpable<Output = FlagHelpCollector>,
+    E2: Helpable<Output = FlagHelpCollector>,
 {
-    type Output = CmdHelpCollector;
+    type Output = FlagHelpCollector;
 
     fn help(&self) -> Self::Output {
-        CmdHelpCollector::new(
-            1,
-            vec![
-                format!("{}", self.evaluator1.help()),
-                format!("{}", self.evaluator2.help()),
-            ],
+        FlagHelpCollector::Joined(
+            Box::new(self.evaluator1.help()),
+            Box::new(self.evaluator2.help()),
         )
     }
 }
@@ -262,6 +225,8 @@ where
 pub struct Optional<E> {
     evaluator: E,
 }
+
+impl<E> Defaultable for Optional<E> where E: Defaultable {}
 
 impl<E> Optional<E> {
     pub fn new(evaluator: E) -> Self {
@@ -281,14 +246,23 @@ where
 
 impl<E> Helpable for Optional<E>
 where
-    E: Helpable<Output = FlagHelpContext>,
+    E: Helpable<Output = FlagHelpCollector>,
 {
-    type Output = FlagHelpContext;
+    type Output = FlagHelpCollector;
 
     fn help(&self) -> Self::Output {
-        self.evaluator.help().with_modifier("optional".to_string())
+        match self.evaluator.help() {
+            FlagHelpCollector::Single(fhc) => {
+                FlagHelpCollector::Single(fhc.with_modifier("optional".to_string()))
+            }
+            // this case should never be hit as joined is not defaultable
+            fhcj @ FlagHelpCollector::Joined(_, _) => fhcj,
+        }
     }
 }
+
+/// A trait that signifies if a type can be assigned a default value.
+pub trait Defaultable {}
 
 #[derive(Debug)]
 pub struct WithDefault<B, E> {
@@ -324,14 +298,18 @@ where
 impl<B, E> Helpable for WithDefault<B, E>
 where
     B: Clone + std::fmt::Debug,
-    E: Helpable + Helpable<Output = FlagHelpContext>,
+    E: Helpable + Helpable<Output = FlagHelpCollector> + Defaultable,
 {
-    type Output = FlagHelpContext;
+    type Output = FlagHelpCollector;
 
     fn help(&self) -> Self::Output {
-        self.evaluator
-            .help()
-            .with_modifier(format!("Default: {:?}", self.default.clone()))
+        match self.evaluator.help() {
+            FlagHelpCollector::Single(fhc) => FlagHelpCollector::Single(
+                fhc.with_modifier(format!("Default: {:?}", self.default.clone())),
+            ),
+            // this case should never be hit as joined is not defaultable
+            fhcj @ FlagHelpCollector::Joined(_, _) => fhcj,
+        }
     }
 }
 
@@ -353,6 +331,8 @@ impl ExpectStringValue {
     }
 }
 
+impl Defaultable for ExpectStringValue {}
+
 impl<'a> Evaluator<'a, &'a [&'a str], String> for ExpectStringValue {
     fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, String> {
         input[..]
@@ -370,10 +350,15 @@ impl<'a> Evaluator<'a, &'a [&'a str], String> for ExpectStringValue {
 }
 
 impl Helpable for ExpectStringValue {
-    type Output = FlagHelpContext;
+    type Output = FlagHelpCollector;
 
     fn help(&self) -> Self::Output {
-        FlagHelpContext::new(self.name, self.short_code, self.description, Vec::new())
+        FlagHelpCollector::Single(FlagHelpContext::new(
+            self.name,
+            self.short_code,
+            self.description,
+            Vec::new(),
+        ))
     }
 }
 
@@ -399,7 +384,6 @@ mod tests {
 
     #[test]
     fn should_generate_expected_helpstring_for_given_command() {
-        /*
         assert_eq!(
             "test:\na test cmd\n--name, -n\tA name.\t[(optional), (Default: \"foo\")]".to_string(),
             Cmd::new(
@@ -413,7 +397,6 @@ mod tests {
             .help()
             .to_string()
         )
-        */
     }
 
     #[test]
@@ -451,34 +434,6 @@ mod tests {
             )
             .evaluate(&input[..])
         );
-    }
-
-    #[test]
-    fn should_generate_expected_helpstring_for_join_evaluator() {
-        assert_eq!(
-            CmdHelpCollector::new(
-                1,
-                vec![
-                    "--name, -n\tA name.".to_string(),
-                    "--log-level, -l\tA given log level setting.".to_string()
-                ]
-            ),
-            Join::new(
-                ExpectStringValue::new("name", "n", "A name."),
-                ExpectStringValue::new("log-level", "l", "A given log level setting.")
-            )
-            .help()
-        );
-
-        assert_eq!(
-            "\t--name, -n\tA name.\n\t--log-level, -l\tA given log level setting.".to_string(),
-            Join::new(
-                ExpectStringValue::new("name", "n", "A name."),
-                ExpectStringValue::new("log-level", "l", "A given log level setting.")
-            )
-            .help()
-            .to_string()
-        )
     }
 
     #[test]
