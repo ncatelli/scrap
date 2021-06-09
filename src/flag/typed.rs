@@ -69,6 +69,14 @@ impl<T, H> Cmd<T, H> {
             handler: handler,
         }
     }
+
+    pub fn dispatch<'a, A, B>(self, flag_values: B)
+    where
+        T: Evaluator<'a, A, B>,
+        H: Fn(B),
+    {
+        (self.handler)(flag_values)
+    }
 }
 
 impl<'a, F, H, B> Evaluator<'a, &'a [&'a str], B> for Cmd<F, H>
@@ -446,25 +454,27 @@ mod tests {
 
     #[test]
     fn cmd_should_type_validate_handler() {
+        let cmd = Cmd::new("test")
+            .description("a test cmd")
+            .with_flags(
+                Flag::expect_string("name", "n", "A name.")
+                    .optional()
+                    .with_default("foo".to_string())
+                    .join(Flag::expect_string(
+                        "log-level",
+                        "l",
+                        "A given log level setting.",
+                    )),
+            )
+            .with_handler(|(l, r)| {
+                format!("(Left: {}, Right: {})", &l, &r);
+            });
+
         assert_eq!(
-            Ok(("foo".to_string(), "info".to_string())),
-            Cmd::new("test")
-                .description("a test cmd")
-                .with_flags(
-                    Flag::expect_string("name", "n", "A name.")
-                        .optional()
-                        .with_default("foo".to_string())
-                        .join(Flag::expect_string(
-                            "log-level",
-                            "l",
-                            "A given log level setting.",
-                        )),
-                )
-                .with_handler(|(l, r)| {
-                    println!("(Left: {}, Right: {})", &l, &r);
-                })
-                .evaluate(&["test", "-l", "info"][..])
-        )
+            Ok(()),
+            cmd.evaluate(&["test", "-l", "info"][..])
+                .map(|flag_values| cmd.dispatch(flag_values))
+        );
     }
 
     #[test]
