@@ -1,5 +1,3 @@
-use std::fmt::write;
-
 pub type EvaluateResult<'a, V> = Result<V, String>;
 
 #[derive(Debug)]
@@ -54,6 +52,20 @@ where
     type Output;
 
     fn help(&self) -> Self::Output;
+}
+
+/// A constructor type to help with building flags. This should never be used
+/// for anything but static method calls.
+pub struct Flag;
+
+impl Flag {
+    pub fn expect_string(
+        name: &'static str,
+        short_code: &'static str,
+        description: &'static str,
+    ) -> ExpectStringValue {
+        ExpectStringValue::new(name, short_code, description)
+    }
 }
 
 pub enum FlagHelpCollector {
@@ -134,12 +146,13 @@ impl std::fmt::Display for FlagHelpContext {
 pub trait Evaluator<'a, A, B> {
     fn evaluate(&self, input: A) -> EvaluateResult<'a, B>;
 
-    fn optional(self) -> BoxedEvaluator<'a, A, Option<B>>
+    fn join<E, C>(self, evaluator2: E) -> BoxedEvaluator<'a, A, (B, C)>
     where
-        Self: Sized + 'a,
-        A: 'a,
+        Self: Sized + Evaluator<'a, A, B> + 'a,
+        E: Evaluator<'a, A, C> + 'a,
+        A: Copy + 'a,
     {
-        BoxedEvaluator::new(Optional::new(self))
+        BoxedEvaluator::new(Join::<Self, E>::new(self, evaluator2))
     }
 }
 
@@ -221,48 +234,19 @@ where
     }
 }
 
-#[derive(Debug)]
-pub struct Optional<E> {
-    evaluator: E,
-}
-
-impl<E> Defaultable for Optional<E> where E: Defaultable {}
-
-impl<E> Optional<E> {
-    pub fn new(evaluator: E) -> Self {
-        Self { evaluator }
-    }
-}
-
-impl<'a, E, A, B> Evaluator<'a, A, Option<B>> for Optional<E>
-where
-    A: 'a,
-    E: Evaluator<'a, A, B>,
-{
-    fn evaluate(&self, input: A) -> EvaluateResult<'a, Option<B>> {
-        Ok(self.evaluator.evaluate(input).map_or(None, |b| Some(b)))
-    }
-}
-
-impl<E> Helpable for Optional<E>
-where
-    E: Helpable<Output = FlagHelpCollector>,
-{
-    type Output = FlagHelpCollector;
-
-    fn help(&self) -> Self::Output {
-        match self.evaluator.help() {
-            FlagHelpCollector::Single(fhc) => {
-                FlagHelpCollector::Single(fhc.with_modifier("optional".to_string()))
-            }
-            // this case should never be hit as joined is not defaultable
-            fhcj @ FlagHelpCollector::Joined(_, _) => fhcj,
-        }
-    }
-}
-
 /// A trait that signifies if a type can be assigned a default value.
-pub trait Defaultable {}
+pub trait Defaultable
+where
+    Self: Sized,
+{
+    fn with_default<D>(self, default: D) -> WithDefault<D, Self> {
+        WithDefault::new(default, self)
+    }
+
+    fn optional(self) -> Optional<Self> {
+        Optional::new(self)
+    }
+}
 
 #[derive(Debug)]
 pub struct WithDefault<B, E> {
@@ -307,6 +291,46 @@ where
             FlagHelpCollector::Single(fhc) => FlagHelpCollector::Single(
                 fhc.with_modifier(format!("Default: {:?}", self.default.clone())),
             ),
+            // this case should never be hit as joined is not defaultable
+            fhcj @ FlagHelpCollector::Joined(_, _) => fhcj,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct Optional<E> {
+    evaluator: E,
+}
+
+impl<E> Defaultable for Optional<E> where E: Defaultable {}
+
+impl<E> Optional<E> {
+    pub fn new(evaluator: E) -> Self {
+        Self { evaluator }
+    }
+}
+
+impl<'a, E, A, B> Evaluator<'a, A, Option<B>> for Optional<E>
+where
+    A: 'a,
+    E: Evaluator<'a, A, B>,
+{
+    fn evaluate(&self, input: A) -> EvaluateResult<'a, Option<B>> {
+        Ok(self.evaluator.evaluate(input).map_or(None, |b| Some(b)))
+    }
+}
+
+impl<E> Helpable for Optional<E>
+where
+    E: Helpable<Output = FlagHelpCollector>,
+{
+    type Output = FlagHelpCollector;
+
+    fn help(&self) -> Self::Output {
+        match self.evaluator.help() {
+            FlagHelpCollector::Single(fhc) => {
+                FlagHelpCollector::Single(fhc.with_modifier("optional".to_string()))
+            }
             // this case should never be hit as joined is not defaultable
             fhcj @ FlagHelpCollector::Joined(_, _) => fhcj,
         }
@@ -434,6 +458,17 @@ mod tests {
             )
             .evaluate(&input[..])
         );
+
+        assert_eq!(
+            Ok(("foo".to_string(), "info".to_string())),
+            Flag::expect_string("name", "n", "A name.")
+                .join(ExpectStringValue::new(
+                    "log-level",
+                    "l",
+                    "A given log level setting."
+                ))
+                .evaluate(&input[..])
+        );
     }
 
     #[test]
@@ -489,6 +524,14 @@ mod tests {
                 Optional::new(ExpectStringValue::new("name", "n", "A name."))
             )
             .evaluate(&input[..])
+        );
+
+        assert_eq!(
+            Ok("foo".to_string()),
+            Flag::expect_string("name", "n", "A name.")
+                .optional()
+                .with_default("foo".to_string())
+                .evaluate(&input[..])
         );
     }
 
