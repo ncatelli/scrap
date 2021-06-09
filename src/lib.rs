@@ -10,7 +10,7 @@ pub struct Cmd<F, H> {
     handler: H,
 }
 
-impl Cmd<(), Box<dyn Fn() -> ()>> {
+impl Cmd<(), Box<dyn Fn()>> {
     pub fn new(name: &'static str) -> Self {
         Self {
             name,
@@ -66,7 +66,7 @@ impl<T, H> Cmd<T, H> {
             author: self.author,
             version: self.version,
             flags: self.flags,
-            handler: handler,
+            handler,
         }
     }
 
@@ -353,7 +353,7 @@ where
     fn evaluate(&self, input: A) -> EvaluateResult<'a, B> {
         self.evaluator
             .evaluate(input)
-            .map(|op| op.unwrap_or(self.default.clone()))
+            .map(|op| op.unwrap_or_else(|| self.default.clone()))
     }
 }
 
@@ -394,7 +394,7 @@ where
     E: Evaluator<'a, A, B>,
 {
     fn evaluate(&self, input: A) -> EvaluateResult<'a, Option<B>> {
-        Ok(self.evaluator.evaluate(input).map_or(None, |b| Some(b)))
+        Ok(self.evaluator.evaluate(input).ok())
     }
 }
 
@@ -447,7 +447,7 @@ impl<'a> Evaluator<'a, &'a [&'a str], String> for ExpectStringValue {
             // Only need the index.
             .map(|(idx, _)| idx)
             .and_then(|idx| input[..].get(idx + 1).map(|&v| v.to_string()))
-            .ok_or("No matching value".to_string())
+            .ok_or_else(|| "No matching value".to_string())
     }
 }
 
@@ -494,7 +494,7 @@ impl<'a> Evaluator<'a, &'a [&'a str], bool> for StoreTrue {
                     || (arg == format!("{}{}", "-", self.short_code))
             })
             .map(|_| true)
-            .ok_or("No matching value".to_string())
+            .ok_or_else(|| "No matching value".to_string())
     }
 }
 
@@ -541,7 +541,7 @@ impl<'a> Evaluator<'a, &'a [&'a str], bool> for StoreFalse {
                     || (arg == format!("{}{}", "-", self.short_code))
             })
             .map(|_| false)
-            .ok_or("No matching value".to_string())
+            .ok_or_else(|| "No matching value".to_string())
     }
 }
 
