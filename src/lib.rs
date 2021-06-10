@@ -406,7 +406,9 @@ where
     }
 }
 
-/// A trait that signifies if a type can be assigned a default value.
+/// A trait that signifies if a type can be assigned a default value. This
+/// includes helper methods for assigning a type as optional and assigning a
+/// default.
 pub trait Defaultable
 where
     Self: Sized,
@@ -420,6 +422,10 @@ where
     }
 }
 
+/// WithDefault takes an evaluator E and a default value B that agrees with the
+/// return type of the Evaluator. This default is meant to wrap the enclosed
+/// evaluator, returning the A success with the default value for any
+/// evaluation that fails.
 #[derive(Debug)]
 pub struct WithDefault<B, E> {
     default: B,
@@ -469,6 +475,10 @@ where
     }
 }
 
+/// Optional wraps an evaluator, for the purpose of transforming the enclosed
+/// evaluator from an `Evaluator<A, B>` to an `Evaluator<A, Option<B>>` where
+/// the success state of the evaluation is capture in the value of the
+// `Option<B>`.
 #[derive(Debug)]
 pub struct Optional<E> {
     evaluator: E,
@@ -509,6 +519,24 @@ where
     }
 }
 
+/// ExpectStringValue represents a terminal flag type, returning the next string value passed.
+///
+/// # Example
+///
+/// ```
+/// use scrap::prelude::v1::*;
+/// use scrap::ExpectStringValue;
+///
+/// assert_eq!(
+///    Ok("foo".to_string()),
+///    ExpectStringValue::new("name", "n", "A name.").evaluate(&["hello", "--name", "foo"][..])
+/// );
+///
+/// assert_eq!(
+///     Ok("foo".to_string()),
+///     ExpectStringValue::new("name", "n", "A name.").evaluate(&["hello", "-n", "foo"][..])
+/// );
+/// ```
 #[derive(Debug)]
 pub struct ExpectStringValue {
     name: &'static str,
@@ -558,6 +586,33 @@ impl Helpable for ExpectStringValue {
     }
 }
 
+/// StoreTrue represents a terminal flag type, returning a boolean set to true if set.
+///
+/// # Example
+///
+/// ```
+/// use scrap::prelude::v1::*;
+/// use scrap::{StoreTrue, WithDefault, Optional};
+///
+/// assert_eq!(
+///    Ok(true),
+///    StoreTrue::new("debug", "d", "Run in debug mode.").evaluate(&["hello", "--debug"][..])
+/// );
+///
+/// assert_eq!(
+///     Ok(true),
+///     StoreTrue::new("debug", "d", "Run in debug mode.").evaluate(&["hello", "-d"][..])
+/// );
+///
+/// assert_eq!(
+///     Ok(false),
+///     WithDefault::new(
+///         false,
+///         Optional::new(StoreTrue::new("debug", "d", "Run in debug mode."))
+///     )
+///     .evaluate(&["hello"][..])
+/// );
+/// ```
 #[derive(Debug)]
 pub struct StoreTrue {
     name: &'static str,
@@ -605,6 +660,33 @@ impl Helpable for StoreTrue {
     }
 }
 
+/// StoreFalse represents a terminal flag type, returning a boolean set to false if set.
+///
+/// # Example
+///
+/// ```
+/// use scrap::prelude::v1::*;
+/// use scrap::{StoreFalse, WithDefault, Optional};
+///
+/// assert_eq!(
+///     Ok(false),
+///     StoreFalse::new("no-wait", "n", "don't wait for a response.").evaluate(&["hello", "--no-wait"][..])
+/// );
+///
+/// assert_eq!(
+///     Ok(false),
+///     StoreFalse::new("no-wait", "n", "don't wait for a response.").evaluate(&["hello", "--no-wait"][..])
+/// );
+///
+/// assert_eq!(
+///     Ok(true),
+///     WithDefault::new(
+///         true,
+///         Optional::new(StoreFalse::new("no-wait", "n", "don't wait for a response."))
+///     )
+///     .evaluate(&["hello"][..])
+/// );
+/// ```
 #[derive(Debug)]
 pub struct StoreFalse {
     name: &'static str,
