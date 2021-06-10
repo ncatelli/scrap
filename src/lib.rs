@@ -128,20 +128,6 @@ impl<T, H> Cmd<T, H> {
     }
 }
 
-impl<'a, T, H, A, B> Dispatchable<A, B, ()> for Cmd<T, H>
-where
-    T: Evaluatable<'a, A, B>,
-    H: Fn(B),
-{
-    fn dispatch(self, flag_values: B) {
-        (self.handler)(flag_values)
-    }
-}
-
-pub trait Dispatchable<A, B, R> {
-    fn dispatch(self, flag_values: B) -> R;
-}
-
 impl<'a, F, H, B> Evaluatable<'a, &'a [&'a str], B> for Cmd<F, H>
 where
     F: Evaluatable<'a, &'a [&'a str], B>,
@@ -171,6 +157,20 @@ where
             self.flags.help().to_string()
         )
     }
+}
+
+impl<'a, T, H, A, B> Dispatchable<A, B, ()> for Cmd<T, H>
+where
+    T: Evaluatable<'a, A, B>,
+    H: Fn(B),
+{
+    fn dispatch(self, flag_values: B) {
+        (self.handler)(flag_values)
+    }
+}
+
+pub trait Dispatchable<A, B, R> {
+    fn dispatch(self, flag_values: B) -> R;
 }
 
 pub trait Helpable
@@ -698,8 +698,8 @@ mod tests {
 
     #[test]
     fn should_generate_expected_helpstring_for_given_command() {
-        assert_eq!(
-            "test:\na test cmd\n--name, -n\tA name.\t[(optional), (default: \"foo\")]".to_string(),
+        assert_eq!("Usage: test [OPTIONS]\na test cmd\nFlags:\n    --name, -n       A name.                                  [(optional), (default: \"foo\")]"
+            .to_string(),
             Cmd::new("test")
                 .description("a test cmd")
                 .with_flags(WithDefault::<String, _>::new(
@@ -780,7 +780,7 @@ mod tests {
     #[test]
     fn should_generate_expected_helpstring_for_given_string_check() {
         assert_eq!(
-            "--name, -n\tA name.".to_string(),
+            "    --name, -n       A name.                                 ".to_string(),
             format!("{}", ExpectStringValue::new("name", "n", "A name.").help())
         )
     }
@@ -840,7 +840,8 @@ mod tests {
     #[test]
     fn should_generate_expected_helpstring_for_optional_flag() {
         assert_eq!(
-            "--log-level, -l\tA given log level setting.\t[(optional)]".to_string(),
+            "    --log-level, -l  A given log level setting.               [(optional)]"
+                .to_string(),
             Optional::new(ExpectStringValue::new(
                 "log-level",
                 "l",
@@ -876,7 +877,8 @@ mod tests {
     #[test]
     fn should_generate_expected_helpstring_for_optional_with_default_flag() {
         assert_eq!(
-            "--name, -n\tA name.\t[(optional), (default: \"foo\")]".to_string(),
+
+            "    --name, -n       A name.                                  [(optional), (default: \"foo\")]".to_string(),
             WithDefault::<String, _>::new(
                 "foo",
                 Optional::new(ExpectStringValue::new("name", "n", "A name."))
