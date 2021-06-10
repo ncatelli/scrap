@@ -3,8 +3,6 @@ pub mod prelude;
 #[cfg(test)]
 mod tests;
 
-pub type EvaluateResult<'a, V> = Result<V, String>;
-
 #[derive(Debug)]
 pub struct CmdGroup<C> {
     name: &'static str,
@@ -290,6 +288,12 @@ impl std::fmt::Display for FlagHelpContext {
     }
 }
 
+/// Represents the result of an Evaluatable::evaluate call signifying whether
+/// the call returned an error or correctly evaluated a flag to a type T.
+pub type EvaluateResult<'a, T> = Result<T, String>;
+
+/// Evaluatable provides methods for parsing and evaluating input values into a
+/// corresponding concrete type.
 pub trait Evaluatable<'a, A, B> {
     fn evaluate(&self, input: A) -> EvaluateResult<'a, B>;
 
@@ -315,6 +319,7 @@ impl<'a, A, B, T> BoxedEvaluatable<'a, A, B> for T where
 {
 }
 
+/// BoxedEvaluator provides a wrapper for Evaluatable types.
 pub struct BoxedEvaluator<'a, A, B> {
     evaluator: Box<dyn BoxedEvaluatable<'a, A, B> + 'a>,
 }
