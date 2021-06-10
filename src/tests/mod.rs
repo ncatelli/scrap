@@ -67,13 +67,17 @@ fn should_generate_expected_helpstring_for_given_command() {
 fn should_generate_expected_helpstring_for_given_string_check() {
     assert_eq!(
         "    --name, -n       A name.                                 ".to_string(),
-        format!("{}", ExpectStringValue::new("name", "n", "A name.").help())
+        format!(
+            "{}",
+            ExpectStringValue::new("name", "n", "A name.").short_help()
+        )
     )
 }
 
 #[test]
 fn should_find_joined_evaluators() {
-    let input = vec!["hello", "-n", "foo", "-l", "info"];
+    let input = ["hello", "-n", "foo", "-l", "info"];
+
     assert_eq!(
         Ok(("foo".to_string(), "info".to_string())),
         Join::new(
@@ -97,7 +101,7 @@ fn should_find_joined_evaluators() {
 
 #[test]
 fn should_optionally_match_a_value() {
-    let input = vec!["hello", "-n", "foo"];
+    let input = ["hello", "-n", "foo"];
 
     assert_eq!(
         Ok(Some("foo".to_string())),
@@ -132,14 +136,14 @@ fn should_generate_expected_helpstring_for_optional_flag() {
             "l",
             "A given log level setting."
         ))
-        .help()
+        .short_help()
         .to_string()
     )
 }
 
 #[test]
 fn should_default_an_optional_match_when_assigned() {
-    let input = vec!["hello", "--log-level", "info"];
+    let input = ["hello", "--log-level", "info"];
 
     assert_eq!(
         Ok("foo".to_string()),
@@ -162,13 +166,12 @@ fn should_default_an_optional_match_when_assigned() {
 #[test]
 fn should_generate_expected_helpstring_for_optional_with_default_flag() {
     assert_eq!(
-
             "    --name, -n       A name.                                  [(optional), (default: \"foo\")]".to_string(),
             WithDefault::<String, _>::new(
                 "foo",
                 Optional::new(ExpectStringValue::new("name", "n", "A name."))
             )
-            .help()
+            .short_help()
             .to_string()
         )
 }

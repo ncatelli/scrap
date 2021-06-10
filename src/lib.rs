@@ -58,6 +58,22 @@ impl<C1, C2> OneOf<C1, C2> {
     }
 }
 
+impl<C1, C2> Helpable for OneOf<C1, C2>
+where
+    C1: ShortHelpable<Output = String>,
+    C2: ShortHelpable<Output = String>,
+{
+    type Output = String;
+
+    fn help(&self) -> Self::Output {
+        format!(
+            "{}\n{}",
+            self.command1.short_help(),
+            self.command2.short_help()
+        )
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct Cmd<F, H> {
     name: &'static str,
@@ -144,9 +160,17 @@ where
     }
 }
 
+impl<F, H> ShortHelpable for Cmd<F, H> {
+    type Output = String;
+
+    fn short_help(&self) -> Self::Output {
+        format!("{:<15} {}", self.name, self.description,)
+    }
+}
+
 impl<F, H> Helpable for Cmd<F, H>
 where
-    F: Helpable<Output = FlagHelpCollector>,
+    F: ShortHelpable<Output = FlagHelpCollector>,
 {
     type Output = String;
 
@@ -155,7 +179,7 @@ where
             "Usage: {} [OPTIONS]\n{}\nFlags:\n{}",
             self.name,
             self.description,
-            self.flags.help().to_string()
+            self.flags.short_help().to_string()
         )
     }
 }
@@ -172,6 +196,16 @@ where
 
 pub trait Dispatchable<A, B, R> {
     fn dispatch(self, flag_values: B) -> R;
+}
+
+/// Provides short summary help descriptions
+pub trait ShortHelpable
+where
+    Self::Output: std::fmt::Display,
+{
+    type Output;
+
+    fn short_help(&self) -> Self::Output;
 }
 
 pub trait Helpable
@@ -310,12 +344,12 @@ pub trait Evaluatable<'a, A, B> {
 /// BoxedEvaluatable serves as a compound trait for the sake of combining the
 /// Helpable and Evaluator traits.
 pub trait BoxedEvaluatable<'a, A, B>:
-    Evaluatable<'a, A, B> + Helpable<Output = FlagHelpCollector>
+    Evaluatable<'a, A, B> + ShortHelpable<Output = FlagHelpCollector>
 {
 }
 
 impl<'a, A, B, T> BoxedEvaluatable<'a, A, B> for T where
-    T: Evaluatable<'a, A, B> + Helpable<Output = FlagHelpCollector> + 'a
+    T: Evaluatable<'a, A, B> + ShortHelpable<Output = FlagHelpCollector> + 'a
 {
 }
 
@@ -335,11 +369,11 @@ impl<'a, A, B> BoxedEvaluator<'a, A, B> {
     }
 }
 
-impl<'a, A, B> Helpable for BoxedEvaluator<'a, A, B> {
+impl<'a, A, B> ShortHelpable for BoxedEvaluator<'a, A, B> {
     type Output = FlagHelpCollector;
 
-    fn help(&self) -> Self::Output {
-        self.evaluator.help()
+    fn short_help(&self) -> Self::Output {
+        self.evaluator.short_help()
     }
 }
 
@@ -391,17 +425,17 @@ where
     }
 }
 
-impl<E1, E2> Helpable for Join<E1, E2>
+impl<E1, E2> ShortHelpable for Join<E1, E2>
 where
-    E1: Helpable<Output = FlagHelpCollector>,
-    E2: Helpable<Output = FlagHelpCollector>,
+    E1: ShortHelpable<Output = FlagHelpCollector>,
+    E2: ShortHelpable<Output = FlagHelpCollector>,
 {
     type Output = FlagHelpCollector;
 
-    fn help(&self) -> Self::Output {
+    fn short_help(&self) -> Self::Output {
         FlagHelpCollector::Joined(
-            Box::new(self.evaluator1.help()),
-            Box::new(self.evaluator2.help()),
+            Box::new(self.evaluator1.short_help()),
+            Box::new(self.evaluator2.short_help()),
         )
     }
 }
@@ -457,15 +491,15 @@ where
     }
 }
 
-impl<B, E> Helpable for WithDefault<B, E>
+impl<B, E> ShortHelpable for WithDefault<B, E>
 where
     B: Clone + std::fmt::Debug,
-    E: Helpable + Helpable<Output = FlagHelpCollector> + Defaultable,
+    E: ShortHelpable<Output = FlagHelpCollector> + Defaultable,
 {
     type Output = FlagHelpCollector;
 
-    fn help(&self) -> Self::Output {
-        match self.evaluator.help() {
+    fn short_help(&self) -> Self::Output {
+        match self.evaluator.short_help() {
             FlagHelpCollector::Single(fhc) => FlagHelpCollector::Single(
                 fhc.with_modifier(format!("default: {:?}", self.default.clone())),
             ),
@@ -502,14 +536,14 @@ where
     }
 }
 
-impl<E> Helpable for Optional<E>
+impl<E> ShortHelpable for Optional<E>
 where
-    E: Helpable<Output = FlagHelpCollector>,
+    E: ShortHelpable<Output = FlagHelpCollector>,
 {
     type Output = FlagHelpCollector;
 
-    fn help(&self) -> Self::Output {
-        match self.evaluator.help() {
+    fn short_help(&self) -> Self::Output {
+        match self.evaluator.short_help() {
             FlagHelpCollector::Single(fhc) => {
                 FlagHelpCollector::Single(fhc.with_modifier("optional".to_string()))
             }
@@ -573,10 +607,10 @@ impl<'a> Evaluatable<'a, &'a [&'a str], String> for ExpectStringValue {
     }
 }
 
-impl Helpable for ExpectStringValue {
+impl ShortHelpable for ExpectStringValue {
     type Output = FlagHelpCollector;
 
-    fn help(&self) -> Self::Output {
+    fn short_help(&self) -> Self::Output {
         FlagHelpCollector::Single(FlagHelpContext::new(
             self.name,
             self.short_code,
@@ -647,10 +681,10 @@ impl<'a> Evaluatable<'a, &'a [&'a str], bool> for StoreTrue {
     }
 }
 
-impl Helpable for StoreTrue {
+impl ShortHelpable for StoreTrue {
     type Output = FlagHelpCollector;
 
-    fn help(&self) -> Self::Output {
+    fn short_help(&self) -> Self::Output {
         FlagHelpCollector::Single(FlagHelpContext::new(
             self.name,
             self.short_code,
@@ -721,10 +755,10 @@ impl<'a> Evaluatable<'a, &'a [&'a str], bool> for StoreFalse {
     }
 }
 
-impl Helpable for StoreFalse {
+impl ShortHelpable for StoreFalse {
     type Output = FlagHelpCollector;
 
-    fn help(&self) -> Self::Output {
+    fn short_help(&self) -> Self::Output {
         FlagHelpCollector::Single(FlagHelpContext::new(
             self.name,
             self.short_code,
