@@ -21,6 +21,8 @@ fn main() {
         )
         .with_handler(|(version, test)| println!("Version: {}\nTest: {}", version, test));
 
+    println!("{}\n", cmd.help());
+
     cmd.evaluate(&args[..])
         .map(|flag_values| cmd.dispatch(flag_values))
         .expect("Flags should evaluate correctly");

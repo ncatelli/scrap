@@ -59,7 +59,7 @@ impl<T, H> Cmd<T, H> {
 
     pub fn with_handler<'a, A, B, NH>(self, handler: NH) -> Cmd<T, NH>
     where
-        T: Evaluator<'a, A, B>,
+        T: Evaluatable<'a, A, B>,
         NH: Fn(B),
     {
         Cmd {
@@ -74,16 +74,16 @@ impl<T, H> Cmd<T, H> {
 
     pub fn dispatch<'a, A, B>(self, flag_values: B)
     where
-        T: Evaluator<'a, A, B>,
+        T: Evaluatable<'a, A, B>,
         H: Fn(B),
     {
         (self.handler)(flag_values)
     }
 }
 
-impl<'a, F, H, B> Evaluator<'a, &'a [&'a str], B> for Cmd<F, H>
+impl<'a, F, H, B> Evaluatable<'a, &'a [&'a str], B> for Cmd<F, H>
 where
-    F: Evaluator<'a, &'a [&'a str], B>,
+    F: Evaluatable<'a, &'a [&'a str], B>,
 {
     fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<B> {
         match input
@@ -226,27 +226,39 @@ impl std::fmt::Display for FlagHelpContext {
     }
 }
 
-pub trait Evaluator<'a, A, B> {
+pub trait Evaluatable<'a, A, B> {
     fn evaluate(&self, input: A) -> EvaluateResult<'a, B>;
 
     fn join<E, C>(self, evaluator2: E) -> BoxedEvaluator<'a, A, (B, C)>
     where
-        Self: Sized + Evaluator<'a, A, B> + 'a,
-        E: Evaluator<'a, A, C> + 'a,
+        Self: Sized + BoxedEvaluatable<'a, A, B> + 'a,
+        E: BoxedEvaluatable<'a, A, C> + 'a,
         A: Copy + 'a,
     {
         BoxedEvaluator::new(Join::<Self, E>::new(self, evaluator2))
     }
 }
 
+/// BoxedEvaluatable serves as a compound trait for the sake of combining the
+/// Helpable and Evaluator traits.
+pub trait BoxedEvaluatable<'a, A, B>:
+    Evaluatable<'a, A, B> + Helpable<Output = FlagHelpCollector>
+{
+}
+
+impl<'a, A, B, T> BoxedEvaluatable<'a, A, B> for T where
+    T: Evaluatable<'a, A, B> + Helpable<Output = FlagHelpCollector> + 'a
+{
+}
+
 pub struct BoxedEvaluator<'a, A, B> {
-    evaluator: Box<dyn Evaluator<'a, A, B> + 'a>,
+    evaluator: Box<dyn BoxedEvaluatable<'a, A, B> + 'a>,
 }
 
 impl<'a, A, B> BoxedEvaluator<'a, A, B> {
     pub fn new<E>(evaluator: E) -> Self
     where
-        E: Evaluator<'a, A, B> + 'a,
+        E: BoxedEvaluatable<'a, A, B> + 'a,
     {
         BoxedEvaluator {
             evaluator: Box::new(evaluator),
@@ -254,13 +266,21 @@ impl<'a, A, B> BoxedEvaluator<'a, A, B> {
     }
 }
 
-impl<'a, A, B> Evaluator<'a, A, B> for BoxedEvaluator<'a, A, B> {
+impl<'a, A, B> Helpable for BoxedEvaluator<'a, A, B> {
+    type Output = FlagHelpCollector;
+
+    fn help(&self) -> Self::Output {
+        self.evaluator.help()
+    }
+}
+
+impl<'a, A, B> Evaluatable<'a, A, B> for BoxedEvaluator<'a, A, B> {
     fn evaluate(&self, input: A) -> EvaluateResult<'a, B> {
         self.evaluator.evaluate(input)
     }
 }
 
-impl<'a, F, A, B> Evaluator<'a, A, B> for F
+impl<'a, F, A, B> Evaluatable<'a, A, B> for F
 where
     A: 'a,
     F: Fn(A) -> EvaluateResult<'a, B>,
@@ -285,11 +305,11 @@ impl<E1, E2> Join<E1, E2> {
     }
 }
 
-impl<'a, E1, E2, A, B, C> Evaluator<'a, A, (B, C)> for Join<E1, E2>
+impl<'a, E1, E2, A, B, C> Evaluatable<'a, A, (B, C)> for Join<E1, E2>
 where
     A: Copy + std::borrow::Borrow<A> + 'a,
-    E1: Evaluator<'a, A, B>,
-    E2: Evaluator<'a, A, C>,
+    E1: Evaluatable<'a, A, B>,
+    E2: Evaluatable<'a, A, C>,
 {
     fn evaluate(&self, input: A) -> EvaluateResult<'a, (B, C)> {
         self.evaluator1
@@ -349,11 +369,11 @@ impl<B, E> WithDefault<B, E> {
     }
 }
 
-impl<'a, E, A, B> Evaluator<'a, A, B> for WithDefault<B, E>
+impl<'a, E, A, B> Evaluatable<'a, A, B> for WithDefault<B, E>
 where
     A: 'a,
     B: Clone,
-    E: Evaluator<'a, A, Option<B>>,
+    E: Evaluatable<'a, A, Option<B>>,
 {
     fn evaluate(&self, input: A) -> EvaluateResult<'a, B> {
         self.evaluator
@@ -393,10 +413,10 @@ impl<E> Optional<E> {
     }
 }
 
-impl<'a, E, A, B> Evaluator<'a, A, Option<B>> for Optional<E>
+impl<'a, E, A, B> Evaluatable<'a, A, Option<B>> for Optional<E>
 where
     A: 'a,
-    E: Evaluator<'a, A, B>,
+    E: Evaluatable<'a, A, B>,
 {
     fn evaluate(&self, input: A) -> EvaluateResult<'a, Option<B>> {
         Ok(self.evaluator.evaluate(input).ok())
@@ -440,7 +460,7 @@ impl ExpectStringValue {
 
 impl Defaultable for ExpectStringValue {}
 
-impl<'a> Evaluator<'a, &'a [&'a str], String> for ExpectStringValue {
+impl<'a> Evaluatable<'a, &'a [&'a str], String> for ExpectStringValue {
     fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, String> {
         input[..]
             .iter()
@@ -489,7 +509,7 @@ impl StoreTrue {
     }
 }
 
-impl<'a> Evaluator<'a, &'a [&'a str], bool> for StoreTrue {
+impl<'a> Evaluatable<'a, &'a [&'a str], bool> for StoreTrue {
     fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, bool> {
         input[..]
             .iter()
@@ -536,7 +556,7 @@ impl StoreFalse {
     }
 }
 
-impl<'a> Evaluator<'a, &'a [&'a str], bool> for StoreFalse {
+impl<'a> Evaluatable<'a, &'a [&'a str], bool> for StoreFalse {
     fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, bool> {
         input[..]
             .iter()
