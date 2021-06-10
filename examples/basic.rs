@@ -21,7 +21,15 @@ fn main() {
         )
         .with_handler(|(version, test)| println!("Version: {}\nTest: {}", version, test));
 
+    println!(
+        "Spasm Basic Example\n\nExample Help Output:\n{}\n",
+        ["-"].iter().cycle().take(40).copied().collect::<String>()
+    );
     println!("{}\n", cmd.help());
+    println!(
+        "Running Dispatcher:\n{}\n",
+        ["-"].iter().cycle().take(40).copied().collect::<String>()
+    );
 
     cmd.evaluate(&args[..])
         .map(|flag_values| cmd.dispatch(flag_values))

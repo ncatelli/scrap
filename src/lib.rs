@@ -2,6 +2,61 @@ pub mod prelude;
 
 pub type EvaluateResult<'a, V> = Result<V, String>;
 
+#[derive(Debug)]
+pub struct CmdGroup<C> {
+    name: &'static str,
+    description: &'static str,
+    author: &'static str,
+    version: &'static str,
+    commands: C,
+}
+
+impl CmdGroup<()> {
+    pub fn new(name: &'static str) -> Self {
+        Self {
+            name,
+            description: "",
+            author: "",
+            version: "",
+            commands: (),
+        }
+    }
+}
+
+impl<C> CmdGroup<C> {
+    pub fn name(mut self, name: &'static str) -> Self {
+        self.name = name;
+        self
+    }
+
+    pub fn description(mut self, description: &'static str) -> Self {
+        self.description = description;
+        self
+    }
+
+    pub fn author(mut self, author: &'static str) -> Self {
+        self.author = author;
+        self
+    }
+
+    pub fn version(mut self, version: &'static str) -> Self {
+        self.version = version;
+        self
+    }
+}
+
+#[derive(Debug)]
+pub struct OneOf<C1, C2> {
+    command1: C1,
+    command2: C2,
+}
+
+impl<C1, C2> OneOf<C1, C2> {
+    pub fn new(command1: C1, command2: C2) -> Self {
+        Self { command1, command2 }
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct Cmd<F, H> {
     name: &'static str,
@@ -71,14 +126,20 @@ impl<T, H> Cmd<T, H> {
             handler,
         }
     }
+}
 
-    pub fn dispatch<'a, A, B>(self, flag_values: B)
-    where
-        T: Evaluatable<'a, A, B>,
-        H: Fn(B),
-    {
+impl<'a, T, H, A, B> Dispatchable<A, B> for Cmd<T, H>
+where
+    T: Evaluatable<'a, A, B>,
+    H: Fn(B),
+{
+    fn dispatch(self, flag_values: B) {
         (self.handler)(flag_values)
     }
+}
+
+pub trait Dispatchable<A, B> {
+    fn dispatch(self, flag_values: B);
 }
 
 impl<'a, F, H, B> Evaluatable<'a, &'a [&'a str], B> for Cmd<F, H>
@@ -104,7 +165,7 @@ where
 
     fn help(&self) -> Self::Output {
         format!(
-            "{}:\n{}\n{}",
+            "Usage: {} [OPTIONS]\n{}\nFlags:\n{}",
             self.name,
             self.description,
             self.flags.help().to_string()
@@ -206,15 +267,15 @@ impl std::fmt::Display for FlagHelpContext {
         if self.modifiers.is_empty() {
             write!(
                 f,
-                "--{}, -{}\t{}",
-                self.name, self.short_code, self.description,
+                "    {:<16} {:<40}",
+                format!("--{}, -{}", self.name, self.short_code),
+                self.description,
             )
         } else {
             write!(
                 f,
-                "--{}, -{}\t{}\t[{}]",
-                self.name,
-                self.short_code,
+                "    {:<16} {:<40} [{}]",
+                format!("--{}, -{}", self.name, self.short_code),
                 self.description,
                 self.modifiers
                     .iter()
