@@ -128,7 +128,7 @@ impl<T, H> Cmd<T, H> {
     }
 }
 
-impl<'a, T, H, A, B> Dispatchable<A, B> for Cmd<T, H>
+impl<'a, T, H, A, B> Dispatchable<A, B, ()> for Cmd<T, H>
 where
     T: Evaluatable<'a, A, B>,
     H: Fn(B),
@@ -138,8 +138,8 @@ where
     }
 }
 
-pub trait Dispatchable<A, B> {
-    fn dispatch(self, flag_values: B);
+pub trait Dispatchable<A, B, R> {
+    fn dispatch(self, flag_values: B) -> R;
 }
 
 impl<'a, F, H, B> Evaluatable<'a, &'a [&'a str], B> for Cmd<F, H>
