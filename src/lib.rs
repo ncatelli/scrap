@@ -46,6 +46,50 @@ impl<C> CmdGroup<C> {
     }
 }
 
+#[derive(Debug, PartialEq)]
+pub enum Either<A, B> {
+    Left(A),
+    Right(B),
+}
+
+/// OneOf provides methods for joining two Cmd evaluators into a single,
+/// exclusive object. This functions much like `Join` however in the case of
+/// `OneOf` only one type can correctly evaluate.
+///
+/// # Example
+///
+/// ```
+/// use scrap::prelude::v1::*;
+/// use scrap::*;
+///
+/// let left_cmd = Cmd::new("test_one")
+///     .description("first test cmd")
+///     .with_flags(
+///         Flag::expect_string("name", "n", "A name.")
+///             .optional()
+///             .with_default("foo".to_string())
+///     )
+///     .with_handler(|name| {
+///         format!("name: {}", &name);
+///     });
+///
+/// let right_cmd = Cmd::new("test_two")
+///     .description("a test cmd")
+///     .with_flags(
+///         Flag::store_true("debug", "d", "Run command in debug mode.")
+///             .optional()
+///             .with_default(false)
+///     )
+///     .with_handler(|debug| {
+///         format!("debug: {}", &debug);
+///     });
+///
+/// assert_eq!(
+///     Ok(Either::Left("test".to_string())),
+///     OneOf::new(left_cmd, right_cmd)
+///         .evaluate(&["test_one", "-n", "test"][..])
+/// );
+/// ```
 #[derive(Debug)]
 pub struct OneOf<C1, C2> {
     command1: C1,
@@ -55,6 +99,36 @@ pub struct OneOf<C1, C2> {
 impl<C1, C2> OneOf<C1, C2> {
     pub fn new(command1: C1, command2: C2) -> Self {
         Self { command1, command2 }
+    }
+}
+
+impl<'a, C1, C2, B, C> Evaluatable<'a, &'a [&'a str], Either<B, C>> for OneOf<C1, C2>
+where
+    C1: Evaluatable<'a, &'a [&'a str], B>,
+    C2: Evaluatable<'a, &'a [&'a str], C>,
+{
+    fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<Either<B, C>> {
+        match (
+            self.command1.evaluate(&input[..]),
+            self.command2.evaluate(&input[..]),
+        ) {
+            (Ok(b), Err(_)) => Ok(Either::Left(b)),
+            (Err(_), Ok(c)) => Ok(Either::Right(c)),
+            _ => Err("ambiguous command.".to_string()),
+        }
+    }
+}
+
+impl<'a, C1, C2, A, B, C> Dispatchable<A, Either<B, C>, ()> for OneOf<C1, C2>
+where
+    C1: Evaluatable<'a, A, B> + Dispatchable<A, B, ()>,
+    C2: Evaluatable<'a, A, C> + Dispatchable<A, C, ()>,
+{
+    fn dispatch(self, flag_values: Either<B, C>) {
+        match flag_values {
+            Either::Left(b) => self.command1.dispatch(b),
+            Either::Right(c) => self.command2.dispatch(c),
+        }
     }
 }
 
