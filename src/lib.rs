@@ -46,6 +46,8 @@ impl<C> CmdGroup<C> {
     }
 }
 
+/// Either, much like Result, provides an enum for encapsulating one of two
+/// exclusive values.
 #[derive(Debug, PartialEq)]
 pub enum Either<A, B> {
     Left(A),
