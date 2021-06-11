@@ -119,6 +119,22 @@ where
     }
 }
 
+impl<C> Helpable for CmdGroup<C>
+where
+    C: ShortHelpable<Output = String>,
+{
+    type Output = String;
+
+    fn help(&self) -> Self::Output {
+        format!(
+            "Usage: {} [OPTIONS]\n{}\n\nSubcommands:\n{}",
+            self.name,
+            self.description,
+            self.commands.short_help()
+        )
+    }
+}
+
 /// Either, much like Result, provides an enum for encapsulating one of two
 /// exclusive values.
 #[derive(Debug, PartialEq)]
@@ -207,14 +223,14 @@ where
     }
 }
 
-impl<C1, C2> Helpable for OneOf<C1, C2>
+impl<C1, C2> ShortHelpable for OneOf<C1, C2>
 where
     C1: ShortHelpable<Output = String>,
     C2: ShortHelpable<Output = String>,
 {
     type Output = String;
 
-    fn help(&self) -> Self::Output {
+    fn short_help(&self) -> Self::Output {
         format!(
             "{}\n{}",
             self.command1.short_help(),
