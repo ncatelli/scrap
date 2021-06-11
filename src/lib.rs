@@ -81,7 +81,7 @@ where
 ///
 /// ```
 /// use scrap::prelude::v1::*;
-/// use scrap::{Cmd, Flag};
+/// use scrap::*;
 ///
 /// assert_eq!(
 ///     Ok(("foo".to_string(), "info".to_string())),
@@ -430,7 +430,7 @@ where
 ///
 /// ```
 /// use scrap::prelude::v1::*;
-/// use scrap::{Cmd, Flag, Join, ExpectStringValue};
+/// use scrap::*;
 ///
 /// let input = ["hello", "-n", "foo", "-l", "info"];
 /// assert_eq!(
@@ -571,7 +571,38 @@ where
 /// Optional wraps an evaluator, for the purpose of transforming the enclosed
 /// evaluator from an `Evaluator<A, B>` to an `Evaluator<A, Option<B>>` where
 /// the success state of the evaluation is capture in the value of the
-// `Option<B>`.
+/// `Option<B>`.
+/// # Example
+///
+/// ```
+/// use scrap::prelude::v1::*;
+/// use scrap::*;
+///
+/// let input = ["hello", "-n", "foo"];
+///
+/// assert_eq!(
+///     Ok(Some("foo".to_string())),
+///     Optional::new(ExpectStringValue::new("name", "n", "A name.")).evaluate(&input[..])
+/// );
+///
+/// // validate boxed syntax works
+/// assert_eq!(
+///     Ok(Some("foo".to_string())),
+///     ExpectStringValue::new("name", "n", "A name.")
+///         .optional()
+///         .evaluate(&input[..])
+/// );
+///
+/// assert_eq!(
+///     Ok(None),
+///     Optional::new(ExpectStringValue::new(
+///         "log-level",
+///         "l",
+///         "A given log level setting."
+///     ))
+///     .evaluate(&input[..])
+/// );
+/// ```
 #[derive(Debug)]
 pub struct Optional<E> {
     evaluator: E,
@@ -685,7 +716,7 @@ impl ShortHelpable for ExpectStringValue {
 ///
 /// ```
 /// use scrap::prelude::v1::*;
-/// use scrap::{StoreTrue, WithDefault, Optional};
+/// use scrap::*;
 ///
 /// assert_eq!(
 ///    Ok(true),
@@ -759,7 +790,7 @@ impl ShortHelpable for StoreTrue {
 ///
 /// ```
 /// use scrap::prelude::v1::*;
-/// use scrap::{StoreFalse, WithDefault, Optional};
+/// use scrap::*;
 ///
 /// assert_eq!(
 ///     Ok(false),

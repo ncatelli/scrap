@@ -52,34 +52,6 @@ fn should_generate_expected_helpstring_for_given_string_check() {
 }
 
 #[test]
-fn should_optionally_match_a_value() {
-    let input = ["hello", "-n", "foo"];
-
-    assert_eq!(
-        Ok(Some("foo".to_string())),
-        Optional::new(ExpectStringValue::new("name", "n", "A name.")).evaluate(&input[..])
-    );
-
-    // validate boxed syntax works
-    assert_eq!(
-        Ok(Some("foo".to_string())),
-        ExpectStringValue::new("name", "n", "A name.")
-            .optional()
-            .evaluate(&input[..])
-    );
-
-    assert_eq!(
-        Ok(None),
-        Optional::new(ExpectStringValue::new(
-            "log-level",
-            "l",
-            "A given log level setting."
-        ))
-        .evaluate(&input[..])
-    );
-}
-
-#[test]
 fn should_generate_expected_helpstring_for_optional_flag() {
     assert_eq!(
         "    --log-level, -l  A given log level setting.               [(optional)]".to_string(),
