@@ -288,7 +288,7 @@ pub trait IsCmd {}
 ///         .evaluate(&["test", "-l", "info"][..])
 /// )
 /// ```
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Cmd<F, H> {
     name: &'static str,
     description: &'static str,
@@ -327,21 +327,61 @@ impl<H> Cmd<(), H> {
 }
 
 impl<T, H> Cmd<T, H> {
+    /// Returns Cmd with the name string set to the provided value.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use scrap::prelude::v1::*;
+    /// use scrap::*;
+    ///
+    /// Cmd::new("test").name("other_test");
+    /// ```
     pub fn name(mut self, name: &'static str) -> Self {
         self.name = name;
         self
     }
 
+    /// Returns Cmd with the description string set to the provided value.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use scrap::prelude::v1::*;
+    /// use scrap::*;
+    ///
+    /// Cmd::new("test").description("A test command.");
+    /// ```
     pub fn description(mut self, description: &'static str) -> Self {
         self.description = description;
         self
     }
 
+    /// Returns Cmd with the author string set to the provided value.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use scrap::prelude::v1::*;
+    /// use scrap::*;
+    ///
+    /// Cmd::new("test").author("John Doe <jdoe@example.com");
+    /// ```
     pub fn author(mut self, author: &'static str) -> Self {
         self.author = author;
         self
     }
 
+    /// Returns Cmd with the version string set to the provided value.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use scrap::prelude::v1::*;
+    /// use scrap::*;
+    ///
+    /// Cmd::new("test").version("1.0.0");
+    /// ```
     pub fn version(mut self, version: &'static str) -> Self {
         self.version = version;
         self
@@ -367,6 +407,19 @@ impl<T, H> Cmd<T, H>
 where
     T: IsFlag,
 {
+    /// Appends a flag to a given command.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use scrap::prelude::v1::*;
+    /// use scrap::*;
+    ///
+    /// Cmd::new("test")
+    ///     .with_flag(
+    ///         Flag::store_false("no-wait", "n", "don't wait for a response.")
+    ///     );
+    /// ```
     pub fn with_flag<NF>(self, new_flag: NF) -> Cmd<Join<T, NF>, H> {
         Cmd {
             name: self.name,
