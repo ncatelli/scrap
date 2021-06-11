@@ -19,7 +19,7 @@ fn main() {
                 .optional()
                 .with_default(false),
         )
-        .with_handler(|((_, version), test)| println!("Version: {}\nTest: {}", version, test));
+        .with_handler(|(version, test)| println!("Version: {}\nTest: {}", version, test));
 
     println!(
         "Spasm Basic Example\n\nExample Help Output:\n{}\n",

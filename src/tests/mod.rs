@@ -14,7 +14,7 @@ fn cmd_should_dispatch_a_valid_handler() {
                 .optional()
                 .with_default(false),
         )
-        .with_handler(|((_, l), debug)| {
+        .with_handler(|(l, debug)| {
             format!("(Left: {}, Right: {})", &l, debug);
         });
 
@@ -27,8 +27,8 @@ fn cmd_should_dispatch_a_valid_handler() {
 
 #[test]
 fn should_generate_expected_helpstring_for_given_command() {
-    assert_eq!(
-        "Usage: test [OPTIONS]\na test cmd\nFlags:\n    --help, --h      display help information.                [(optional), (default: false)]\n    --name, -n       A name.                                  [(optional), (default: \"foo\")]".to_string(),
+    assert_eq!("Usage: test [OPTIONS]\na test cmd\nFlags:\n    --name, -n       A name.                                  [(optional), (default: \"foo\")]"
+            .to_string(),
             Cmd::new("test")
                 .description("a test cmd")
                 .with_flag(WithDefault::<String, _>::new(

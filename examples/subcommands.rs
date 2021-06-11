@@ -15,7 +15,7 @@ fn main() {
                         .optional()
                         .with_default("foo".to_string()),
                 )
-                .with_handler(|(_, name)| {
+                .with_handler(|name| {
                     println!("name: {}", &name);
                 }),
         )
@@ -27,7 +27,7 @@ fn main() {
                         .optional()
                         .with_default(false),
                 )
-                .with_handler(|(_, debug)| {
+                .with_handler(|debug| {
                     println!("debug: {}", &debug);
                 }),
         );
