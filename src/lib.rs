@@ -93,16 +93,6 @@ impl<C> CmdGroup<C> {
         self.version = version;
         self
     }
-
-    pub fn with_commands<NC>(self, commands: NC) -> CmdGroup<NC> {
-        CmdGroup {
-            name: self.name,
-            description: self.description,
-            author: self.author,
-            version: self.version,
-            commands,
-        }
-    }
 }
 
 impl<C> CmdGroup<C>
