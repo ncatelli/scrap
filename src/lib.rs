@@ -519,6 +519,32 @@ where
 /// return type of the Evaluator. This default is meant to wrap the enclosed
 /// evaluator, returning the A success with the default value for any
 /// evaluation that fails.
+///
+/// # Example
+///
+/// ```
+/// use scrap::prelude::v1::*;
+/// use scrap::*;
+///
+/// let input = ["hello", "--log-level", "info"];
+///
+/// assert_eq!(
+///     Ok("foo".to_string()),
+///     WithDefault::new(
+///         "foo",
+///         Optional::new(ExpectStringValue::new("name", "n", "A name."))
+///     )
+///     .evaluate(&input[..])
+/// );
+///
+/// assert_eq!(
+///     Ok("foo".to_string()),
+///     Flag::expect_string("name", "n", "A name.")
+///         .optional()
+///         .with_default("foo".to_string())
+///         .evaluate(&input[..])
+/// );
+/// ```
 #[derive(Debug)]
 pub struct WithDefault<B, E> {
     default: B,

@@ -66,28 +66,6 @@ fn should_generate_expected_helpstring_for_optional_flag() {
 }
 
 #[test]
-fn should_default_an_optional_match_when_assigned() {
-    let input = ["hello", "--log-level", "info"];
-
-    assert_eq!(
-        Ok("foo".to_string()),
-        WithDefault::new(
-            "foo",
-            Optional::new(ExpectStringValue::new("name", "n", "A name."))
-        )
-        .evaluate(&input[..])
-    );
-
-    assert_eq!(
-        Ok("foo".to_string()),
-        Flag::expect_string("name", "n", "A name.")
-            .optional()
-            .with_default("foo".to_string())
-            .evaluate(&input[..])
-    );
-}
-
-#[test]
 fn should_generate_expected_helpstring_for_optional_with_default_flag() {
     assert_eq!(
             "    --name, -n       A name.                                  [(optional), (default: \"foo\")]".to_string(),
