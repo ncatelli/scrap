@@ -571,6 +571,8 @@ impl Flag {
     }
 }
 
+/// FlagHelpCollector provides a helper enum for collecting flag help strings
+/// that are either derived from a single flag or joined flags.
 pub enum FlagHelpCollector {
     Single(FlagHelpContext),
     Joined(Box<Self>, Box<Self>),
@@ -591,6 +593,8 @@ impl std::fmt::Display for FlagHelpCollector {
     }
 }
 
+/// FlagHelpContext provides a type to store flag data that may be modified
+/// through the course of generating a help string.
 #[derive(Default)]
 pub struct FlagHelpContext {
     name: &'static str,
@@ -601,6 +605,7 @@ pub struct FlagHelpContext {
 }
 
 impl FlagHelpContext {
+    /// Instantiates a new instance of FlagHelpContext.
     pub fn new(
         name: &'static str,
         short_code: &'static str,
@@ -615,6 +620,8 @@ impl FlagHelpContext {
         }
     }
 
+    /// with_modifier returns an instances of FlagHelpContext with a provided
+    /// modifier appended to the end of the modifiers vector.
     pub fn with_modifier(mut self, modifier: String) -> Self {
         self.modifiers.push(modifier);
         self
@@ -758,6 +765,7 @@ pub struct Join<E1, E2> {
 impl<E1, E2> IsFlag for Join<E1, E2> {}
 
 impl<E1, E2> Join<E1, E2> {
+    /// Instantiates a new instance of Join with two given evaluators.
     pub fn new(evaluator1: E1, evaluator2: E2) -> Self {
         Self {
             evaluator1,
@@ -805,10 +813,33 @@ pub trait Defaultable
 where
     Self: Sized,
 {
+    /// with_default returns a given type wrapped in a WithDefault with the
+    /// provided default value. Functionally this is an alias for
+    /// `WithDefault::new(self, default)`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use scrap::prelude::v1::*;
+    /// use scrap::*;
+    ///
+    /// ExpectStringValue::new("name", "n", "A name.").optional().with_default("foo".to_string());
+    /// ```
     fn with_default<D>(self, default: D) -> WithDefault<D, Self> {
         WithDefault::new(default, self)
     }
 
+    /// optional wraps a given type in an Optional struct. Functionally this
+    /// is an alias for `Optional::new(self)`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use scrap::prelude::v1::*;
+    /// use scrap::*;
+    ///
+    /// ExpectStringValue::new("name", "n", "A name.").optional();
+    /// ```
     fn optional(self) -> Optional<Self> {
         Optional::new(self)
     }
@@ -853,6 +884,19 @@ pub struct WithDefault<B, E> {
 impl<B, E> IsFlag for WithDefault<B, E> {}
 
 impl<B, E> WithDefault<B, E> {
+    /// Instantiates a new of WithDefault for a given type
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use scrap::prelude::v1::*;
+    /// use scrap::*;
+    ///
+    /// WithDefault::<String, _>::new(
+    ///     "foo",
+    ///     Optional::new(ExpectStringValue::new("name", "n", "A name."))
+    /// );
+    /// ```
     pub fn new<D>(default: D, evaluator: E) -> Self
     where
         D: Into<B>,
@@ -940,6 +984,16 @@ impl<E> IsFlag for Optional<E> {}
 impl<E> Defaultable for Optional<E> where E: Defaultable {}
 
 impl<E> Optional<E> {
+    /// Instantiates a new instance of Optional.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use scrap::prelude::v1::*;
+    /// use scrap::*;
+    ///
+    /// Optional::new(ExpectStringValue::new("name", "n", "A name."));
+    /// ```
     pub fn new(evaluator: E) -> Self {
         Self { evaluator }
     }
@@ -978,7 +1032,7 @@ where
 ///
 /// ```
 /// use scrap::prelude::v1::*;
-/// use scrap::ExpectStringValue;
+/// use scrap::*;
 ///
 /// assert_eq!(
 ///    Ok("foo".to_string()),
@@ -1000,6 +1054,17 @@ pub struct ExpectStringValue {
 impl IsFlag for ExpectStringValue {}
 
 impl ExpectStringValue {
+    /// Instantiates a new instance of ExpectStringValue with a given flag name,
+    /// shortcode and description.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use scrap::prelude::v1::*;
+    /// use scrap::*;
+    ///
+    /// ExpectStringValue::new("name", "n", "A name.");
+    /// ```
     #[allow(dead_code)]
     pub fn new(name: &'static str, short_code: &'static str, description: &'static str) -> Self {
         Self {
@@ -1079,6 +1144,17 @@ impl IsFlag for StoreTrue {}
 impl Defaultable for StoreTrue {}
 
 impl StoreTrue {
+    /// Instantiates a new instance of StoreTrue with a given flag name,
+    /// shortcode and description.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use scrap::prelude::v1::*;
+    /// use scrap::*;
+    ///
+    /// StoreTrue::new("debug", "d", "Run a command in debug mode.");
+    /// ```
     #[allow(dead_code)]
     pub fn new(name: &'static str, short_code: &'static str, description: &'static str) -> Self {
         Self {
@@ -1154,6 +1230,17 @@ impl IsFlag for StoreFalse {}
 impl Defaultable for StoreFalse {}
 
 impl StoreFalse {
+    /// Instantiates a new instance of StoreFalse with a given flag name,
+    /// shortcode and description.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use scrap::prelude::v1::*;
+    /// use scrap::*;
+    ///
+    /// StoreFalse::new("no-wait", "n", "don't wait for a response.");
+    /// ```
     #[allow(dead_code)]
     pub fn new(name: &'static str, short_code: &'static str, description: &'static str) -> Self {
         Self {
