@@ -323,6 +323,17 @@ impl<T, H> Cmd<T, H> {
         }
     }
 
+    pub fn with_flag<NF>(self, new_flag: NF) -> Cmd<Join<T, NF>, H> {
+        Cmd {
+            name: self.name,
+            description: self.description,
+            author: self.author,
+            version: self.version,
+            flags: Join::new(self.flags, new_flag),
+            handler: self.handler,
+        }
+    }
+
     pub fn with_handler<'a, A, B, NH>(self, handler: NH) -> Cmd<T, NH>
     where
         T: Evaluatable<'a, A, B>,
@@ -335,6 +346,19 @@ impl<T, H> Cmd<T, H> {
             version: self.version,
             flags: self.flags,
             handler,
+        }
+    }
+}
+
+// Cmd has no flags
+impl<'a, H> Evaluatable<'a, &'a [&'a str], ()> for Cmd<(), H> {
+    fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<()> {
+        match input
+            .get(0)
+            .map(|&bin| std::path::Path::new(bin).file_name())
+        {
+            Some(Some(name)) if name == self.name => Ok(()),
+            _ => Err(format!("no match for command: {}", &self.name)),
         }
     }
 }
@@ -359,6 +383,18 @@ impl<F, H> ShortHelpable for Cmd<F, H> {
 
     fn short_help(&self) -> Self::Output {
         format!("{:<15} {}", self.name, self.description,)
+    }
+}
+
+// Cmd has no flags
+impl<H> Helpable for Cmd<(), H> {
+    type Output = String;
+
+    fn help(&self) -> Self::Output {
+        format!(
+            "Usage: {} [OPTIONS]\n{}\nFlags:\n",
+            self.name, self.description,
+        )
     }
 }
 

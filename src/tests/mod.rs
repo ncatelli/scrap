@@ -7,12 +7,12 @@ fn cmd_should_dispatch_a_valid_handler() {
         .with_flags(
             Flag::expect_string("name", "n", "A name.")
                 .optional()
-                .with_default("foo".to_string())
-                .join(
-                    Flag::store_true("debug", "d", "run command in debug mode.")
-                        .optional()
-                        .with_default(false),
-                ),
+                .with_default("foo".to_string()),
+        )
+        .with_flag(
+            Flag::store_true("debug", "d", "run command in debug mode.")
+                .optional()
+                .with_default(false),
         )
         .with_handler(|(l, debug)| {
             format!("(Left: {}, Right: {})", &l, debug);
