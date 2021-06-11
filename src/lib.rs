@@ -184,8 +184,8 @@ where
 {
     fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<Either<B, C>> {
         match (
-            self.command1.evaluate(&input[..]),
-            self.command2.evaluate(&input[..]),
+            self.command1.evaluate(&input),
+            self.command2.evaluate(&input),
         ) {
             (Ok(b), Err(_)) => Ok(Either::Left(b)),
             (Err(_), Ok(c)) => Ok(Either::Right(c)),
