@@ -74,6 +74,35 @@ where
     }
 }
 
+/// Cmd represents an executable Cmd for the purpose of collating both flags
+/// and a corresponding handler.
+///
+/// # Example
+///
+/// ```
+/// use scrap::prelude::v1::*;
+/// use scrap::{Cmd, Flag};
+///
+/// assert_eq!(
+///     Ok(("foo".to_string(), "info".to_string())),
+///     Cmd::new("test")
+///         .description("a test cmd")
+///         .with_flags(
+///             Flag::expect_string("name", "n", "A name.")
+///                 .optional()
+///                 .with_default("foo".to_string())
+///                 .join(Flag::expect_string(
+///                     "log-level",
+///                     "l",
+///                     "A given log level setting.",
+///                 )),
+///         )
+///         .with_handler(|(l, r)| {
+///             format!("(Left: {}, Right: {})", &l, &r);
+///         })
+///         .evaluate(&["test", "-l", "info"][..])
+/// )
+/// ```
 #[derive(Debug, Default)]
 pub struct Cmd<F, H> {
     name: &'static str,
@@ -393,6 +422,36 @@ where
     }
 }
 
+/// Join provides a wrapper type for flag `Evaluators` allowing two evaluators
+/// to be joined into a two return value. This join provides the basis for
+/// compound or multiple flag values being passed upstream to a `Cmd`.
+///
+/// # Example
+///
+/// ```
+/// use scrap::prelude::v1::*;
+/// use scrap::{Cmd, Flag, Join, ExpectStringValue};
+///
+/// let input = ["hello", "-n", "foo", "-l", "info"];
+/// assert_eq!(
+///     Ok(("foo".to_string(), "info".to_string())),
+///     Join::new(
+///         ExpectStringValue::new("name", "n", "A name."),
+///         ExpectStringValue::new("log-level", "l", "A given log level setting."),
+///     )
+///     .evaluate(&input[..])
+/// );
+/// assert_eq!(
+///     Ok(("foo".to_string(), "info".to_string())),
+///     Flag::expect_string("name", "n", "A name.")
+///         .join(ExpectStringValue::new(
+///             "log-level",
+///             "l",
+///             "A given log level setting."
+///         ))
+///         .evaluate(&input[..])
+/// );
+/// ```
 #[derive(Debug)]
 pub struct Join<E1, E2> {
     evaluator1: E1,
