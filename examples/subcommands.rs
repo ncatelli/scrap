@@ -15,7 +15,7 @@ fn main() {
                     .with_default("foo".to_string()),
             )
             .with_handler(|name| {
-                format!("name: {}", &name);
+                println!("name: {}", &name);
             }),
         Cmd::new("test_two")
             .description("a test cmd")
@@ -25,7 +25,7 @@ fn main() {
                     .with_default(false),
             )
             .with_handler(|debug| {
-                format!("debug: {}", &debug);
+                println!("debug: {}", &debug);
             }),
     ));
 
