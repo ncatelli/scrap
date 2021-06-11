@@ -19,7 +19,7 @@ mod tests;
 ///             .optional()
 ///             .with_default("foo".to_string())
 ///     )
-///     .with_handler(|name| {
+///     .with_handler(|(_, name)| {
 ///         format!("name: {}", &name);
 ///     });
 ///
@@ -30,14 +30,14 @@ mod tests;
 ///             .optional()
 ///             .with_default(false)
 ///     )
-///     .with_handler(|debug| {
+///     .with_handler(|(_, debug)| {
 ///         format!("debug: {}", &debug);
 ///     });
 ///
 /// let commands = OneOf::new(left_cmd, right_cmd);
 ///
 /// assert_eq!(
-///     Ok(Either::Left("test".to_string())),
+///     Ok(Either::Left((false, "test".to_string()))),
 ///     CmdGroup::new("testgroup").with_command(commands)
 ///         .evaluate(&["testgroup", "test_one", "-n", "test"][..])
 /// );
@@ -175,7 +175,7 @@ pub enum Either<A, B> {
 ///             .optional()
 ///             .with_default("foo".to_string())
 ///     )
-///     .with_handler(|name| {
+///     .with_handler(|(_, name)| {
 ///         format!("name: {}", &name);
 ///     });
 ///
@@ -186,12 +186,12 @@ pub enum Either<A, B> {
 ///             .optional()
 ///             .with_default(false)
 ///     )
-///     .with_handler(|debug| {
+///     .with_handler(|(_, debug)| {
 ///         format!("debug: {}", &debug);
 ///     });
 ///
 /// assert_eq!(
-///     Ok(Either::Left("test".to_string())),
+///     Ok(Either::Left((false, "test".to_string()))),
 ///     OneOf::new(left_cmd, right_cmd)
 ///         .evaluate(&["test_one", "-n", "test"][..])
 /// );
@@ -267,7 +267,7 @@ pub trait IsCmd {}
 /// use scrap::*;
 ///
 /// assert_eq!(
-///     Ok(("foo".to_string(), "info".to_string())),
+///     Ok(((false, "foo".to_string()), "info".to_string())),
 ///     Cmd::new("test")
 ///         .description("a test cmd")
 ///         .with_flag(
@@ -282,7 +282,7 @@ pub trait IsCmd {}
 ///                 "A given log level setting.",
 ///             )
 ///         )
-///         .with_handler(|(l, r)| {
+///         .with_handler(|((_, l), r)| {
 ///             format!("(Left: {}, Right: {})", &l, &r);
 ///         })
 ///         .evaluate(&["test", "-l", "info"][..])
@@ -301,27 +301,17 @@ pub struct Cmd<F, H> {
 impl<F, H> IsCmd for Cmd<F, H> {}
 
 impl Cmd<(), Box<dyn Fn()>> {
-    pub fn new(name: &'static str) -> Self {
-        Self {
+    pub fn new(name: &'static str) -> Cmd<WithDefault<bool, Optional<StoreTrue>>, Box<dyn Fn()>> {
+        Cmd {
             name,
             description: "",
             author: "",
             version: "",
-            flags: (),
+            flags: WithDefault::new(
+                false,
+                Optional::new(Flag::store_true("help", "-h", "display help information.")),
+            ),
             handler: Box::new(|| ()),
-        }
-    }
-}
-
-impl<H> Cmd<(), H> {
-    pub fn with_flag<NF>(self, new_flag: NF) -> Cmd<NF, H> {
-        Cmd {
-            name: self.name,
-            description: self.description,
-            author: self.author,
-            version: self.version,
-            flags: new_flag,
-            handler: self.handler,
         }
     }
 }
