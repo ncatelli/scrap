@@ -14,7 +14,7 @@ mod tests;
 ///
 /// let left_cmd = Cmd::new("test_one")
 ///     .description("first test cmd")
-///     .with_flags(
+///     .with_flag(
 ///         Flag::expect_string("name", "n", "A name.")
 ///             .optional()
 ///             .with_default("foo".to_string())
@@ -25,7 +25,7 @@ mod tests;
 ///
 /// let right_cmd = Cmd::new("test_two")
 ///     .description("a test cmd")
-///     .with_flags(
+///     .with_flag(
 ///         Flag::store_true("debug", "d", "Run command in debug mode.")
 ///             .optional()
 ///             .with_default(false)
@@ -38,7 +38,7 @@ mod tests;
 ///
 /// assert_eq!(
 ///     Ok(Either::Left("test".to_string())),
-///     CmdGroup::new("testgroup").with_commands(commands)
+///     CmdGroup::new("testgroup").with_command(commands)
 ///         .evaluate(&["testgroup", "test_one", "-n", "test"][..])
 /// );
 /// ```
@@ -170,7 +170,7 @@ pub enum Either<A, B> {
 ///
 /// let left_cmd = Cmd::new("test_one")
 ///     .description("first test cmd")
-///     .with_flags(
+///     .with_flag(
 ///         Flag::expect_string("name", "n", "A name.")
 ///             .optional()
 ///             .with_default("foo".to_string())
@@ -181,7 +181,7 @@ pub enum Either<A, B> {
 ///
 /// let right_cmd = Cmd::new("test_two")
 ///     .description("a test cmd")
-///     .with_flags(
+///     .with_flag(
 ///         Flag::store_true("debug", "d", "Run command in debug mode.")
 ///             .optional()
 ///             .with_default(false)
@@ -270,15 +270,17 @@ pub trait IsCmd {}
 ///     Ok(("foo".to_string(), "info".to_string())),
 ///     Cmd::new("test")
 ///         .description("a test cmd")
-///         .with_flags(
+///         .with_flag(
 ///             Flag::expect_string("name", "n", "A name.")
 ///                 .optional()
 ///                 .with_default("foo".to_string())
-///                 .join(Flag::expect_string(
-///                     "log-level",
-///                     "l",
-///                     "A given log level setting.",
-///                 )),
+///         )
+///         .with_flag(
+///             Flag::expect_string(
+///                 "log-level",
+///                 "l",
+///                 "A given log level setting.",
+///             )
 ///         )
 ///         .with_handler(|(l, r)| {
 ///             format!("(Left: {}, Right: {})", &l, &r);
