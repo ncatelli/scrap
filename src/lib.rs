@@ -291,6 +291,19 @@ impl Cmd<(), Box<dyn Fn()>> {
     }
 }
 
+impl<H> Cmd<(), H> {
+    pub fn with_flag<NF>(self, new_flag: NF) -> Cmd<NF, H> {
+        Cmd {
+            name: self.name,
+            description: self.description,
+            author: self.author,
+            version: self.version,
+            flags: new_flag,
+            handler: self.handler,
+        }
+    }
+}
+
 impl<T, H> Cmd<T, H> {
     pub fn name(mut self, name: &'static str) -> Self {
         self.name = name;
@@ -312,28 +325,6 @@ impl<T, H> Cmd<T, H> {
         self
     }
 
-    pub fn with_flags<F>(self, flags: F) -> Cmd<F, H> {
-        Cmd {
-            name: self.name,
-            description: self.description,
-            author: self.author,
-            version: self.version,
-            flags,
-            handler: self.handler,
-        }
-    }
-
-    pub fn with_flag<NF>(self, new_flag: NF) -> Cmd<Join<T, NF>, H> {
-        Cmd {
-            name: self.name,
-            description: self.description,
-            author: self.author,
-            version: self.version,
-            flags: Join::new(self.flags, new_flag),
-            handler: self.handler,
-        }
-    }
-
     pub fn with_handler<'a, A, B, NH>(self, handler: NH) -> Cmd<T, NH>
     where
         T: Evaluatable<'a, A, B>,
@@ -346,6 +337,22 @@ impl<T, H> Cmd<T, H> {
             version: self.version,
             flags: self.flags,
             handler,
+        }
+    }
+}
+
+impl<T, H> Cmd<T, H>
+where
+    T: IsFlag,
+{
+    pub fn with_flag<NF>(self, new_flag: NF) -> Cmd<Join<T, NF>, H> {
+        Cmd {
+            name: self.name,
+            description: self.description,
+            author: self.author,
+            version: self.version,
+            flags: Join::new(self.flags, new_flag),
+            handler: self.handler,
         }
     }
 }
@@ -447,9 +454,14 @@ where
     fn help(&self) -> Self::Output;
 }
 
+/// A marker trait to denote flag-like objects from terminal objects.
+pub trait IsFlag {}
+
 /// A constructor type to help with building flags. This should never be used
 /// for anything but static method calls.
 pub struct Flag;
+
+impl IsFlag for Flag {}
 
 impl Flag {
     pub fn expect_string(
@@ -588,6 +600,8 @@ pub struct BoxedEvaluator<'a, A, B> {
     evaluator: Box<dyn BoxedEvaluatable<'a, A, B> + 'a>,
 }
 
+impl<'a, A, B> IsFlag for BoxedEvaluator<'a, A, B> {}
+
 impl<'a, A, B> BoxedEvaluator<'a, A, B> {
     pub fn new<E>(evaluator: E) -> Self
     where
@@ -658,6 +672,8 @@ pub struct Join<E1, E2> {
     evaluator1: E1,
     evaluator2: E2,
 }
+
+impl<E1, E2> IsFlag for Join<E1, E2> {}
 
 impl<E1, E2> Join<E1, E2> {
     pub fn new(evaluator1: E1, evaluator2: E2) -> Self {
@@ -752,6 +768,8 @@ pub struct WithDefault<B, E> {
     evaluator: E,
 }
 
+impl<B, E> IsFlag for WithDefault<B, E> {}
+
 impl<B, E> WithDefault<B, E> {
     pub fn new<D>(default: D, evaluator: E) -> Self
     where
@@ -835,6 +853,8 @@ pub struct Optional<E> {
     evaluator: E,
 }
 
+impl<E> IsFlag for Optional<E> {}
+
 impl<E> Defaultable for Optional<E> where E: Defaultable {}
 
 impl<E> Optional<E> {
@@ -894,6 +914,8 @@ pub struct ExpectStringValue {
     short_code: &'static str,
     description: &'static str,
 }
+
+impl IsFlag for ExpectStringValue {}
 
 impl ExpectStringValue {
     #[allow(dead_code)]
@@ -971,6 +993,7 @@ pub struct StoreTrue {
     description: &'static str,
 }
 
+impl IsFlag for StoreTrue {}
 impl Defaultable for StoreTrue {}
 
 impl StoreTrue {
@@ -1045,6 +1068,7 @@ pub struct StoreFalse {
     description: &'static str,
 }
 
+impl IsFlag for StoreFalse {}
 impl Defaultable for StoreFalse {}
 
 impl StoreFalse {

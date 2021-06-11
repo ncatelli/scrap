@@ -4,7 +4,7 @@ use super::*;
 fn cmd_should_dispatch_a_valid_handler() {
     let cmd = Cmd::new("test")
         .description("a test cmd")
-        .with_flags(
+        .with_flag(
             Flag::expect_string("name", "n", "A name.")
                 .optional()
                 .with_default("foo".to_string()),
@@ -31,7 +31,7 @@ fn should_generate_expected_helpstring_for_given_command() {
             .to_string(),
             Cmd::new("test")
                 .description("a test cmd")
-                .with_flags(WithDefault::<String, _>::new(
+                .with_flag(WithDefault::<String, _>::new(
                     "foo",
                     Optional::new(ExpectStringValue::new("name", "n", "A name.")),
                 ),)

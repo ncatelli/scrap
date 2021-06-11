@@ -7,5 +7,8 @@ pub use crate::Dispatchable;
 /// Defines behaviors for evaluating an input to a given type.
 pub use crate::Evaluatable;
 
+/// Defines a marker trait for matching flag-like types from non-flag types.
+pub use crate::IsFlag;
+
 /// Defines behaviors for associating help strings with a given type.
 pub use crate::{Helpable, ShortHelpable};

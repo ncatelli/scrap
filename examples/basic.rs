@@ -9,7 +9,7 @@ fn main() {
         .description("this is a test")
         .author("John Doe <jdoe@example.com>")
         .version("1.2.3")
-        .with_flags(
+        .with_flag(
             scrap::Flag::store_true("version", "v", "output the version of the command.")
                 .optional()
                 .with_default(false),
