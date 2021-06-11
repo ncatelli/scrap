@@ -3,6 +3,45 @@ pub mod prelude;
 #[cfg(test)]
 mod tests;
 
+/// CmdGroup functions as a grouping of multiple dispatchable commands under a
+/// single command grouping.
+///
+/// # Example
+///
+/// ```
+/// use scrap::prelude::v1::*;
+/// use scrap::*;
+///
+/// let left_cmd = Cmd::new("test_one")
+///     .description("first test cmd")
+///     .with_flags(
+///         Flag::expect_string("name", "n", "A name.")
+///             .optional()
+///             .with_default("foo".to_string())
+///     )
+///     .with_handler(|name| {
+///         format!("name: {}", &name);
+///     });
+///
+/// let right_cmd = Cmd::new("test_two")
+///     .description("a test cmd")
+///     .with_flags(
+///         Flag::store_true("debug", "d", "Run command in debug mode.")
+///             .optional()
+///             .with_default(false)
+///     )
+///     .with_handler(|debug| {
+///         format!("debug: {}", &debug);
+///     });
+///
+/// let commands = OneOf::new(left_cmd, right_cmd);
+///
+/// assert_eq!(
+///     Ok(Either::Left("test".to_string())),
+///     CmdGroup::new("testgroup").with_commands(commands)
+///         .evaluate(&["testgroup", "test_one", "-n", "test"][..])
+/// );
+/// ```
 #[derive(Debug)]
 pub struct CmdGroup<C> {
     name: &'static str,
@@ -43,6 +82,40 @@ impl<C> CmdGroup<C> {
     pub fn version(mut self, version: &'static str) -> Self {
         self.version = version;
         self
+    }
+
+    pub fn with_commands<NC>(self, commands: NC) -> CmdGroup<NC> {
+        CmdGroup {
+            name: self.name,
+            description: self.description,
+            author: self.author,
+            version: self.version,
+            commands,
+        }
+    }
+}
+
+impl<'a, C, B> Evaluatable<'a, &'a [&'a str], B> for CmdGroup<C>
+where
+    C: Evaluatable<'a, &'a [&'a str], B>,
+{
+    fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<B> {
+        match input
+            .get(0)
+            .map(|&bin| std::path::Path::new(bin).file_name())
+        {
+            Some(Some(name)) if name == self.name => self.commands.evaluate(&input[1..]),
+            _ => Err(format!("no match for command: {}", &self.name)),
+        }
+    }
+}
+
+impl<'a, C, A, B> Dispatchable<A, B, ()> for CmdGroup<C>
+where
+    C: Evaluatable<'a, A, B> + Dispatchable<A, B, ()>,
+{
+    fn dispatch(self, flag_values: B) {
+        self.commands.dispatch(flag_values)
     }
 }
 
