@@ -61,6 +61,16 @@ impl CmdGroup<()> {
             commands: (),
         }
     }
+
+    pub fn with_command<NC>(self, new_cmd: NC) -> CmdGroup<NC> {
+        CmdGroup {
+            name: self.name,
+            description: self.description,
+            author: self.author,
+            version: self.version,
+            commands: new_cmd,
+        }
+    }
 }
 
 impl<C> CmdGroup<C> {
@@ -91,6 +101,21 @@ impl<C> CmdGroup<C> {
             author: self.author,
             version: self.version,
             commands,
+        }
+    }
+}
+
+impl<C> CmdGroup<C>
+where
+    C: IsCmd,
+{
+    pub fn with_command<NC>(self, new_cmd: NC) -> CmdGroup<OneOf<C, NC>> {
+        CmdGroup {
+            name: self.name,
+            description: self.description,
+            author: self.author,
+            version: self.version,
+            commands: OneOf::new(self.commands, new_cmd),
         }
     }
 }
@@ -239,6 +264,9 @@ where
     }
 }
 
+/// A marker trait to denote cmd-like objects from terminal objects.
+pub trait IsCmd {}
+
 /// Cmd represents an executable Cmd for the purpose of collating both flags
 /// and a corresponding handler.
 ///
@@ -277,6 +305,8 @@ pub struct Cmd<F, H> {
     flags: F,
     handler: H,
 }
+
+impl<F, H> IsCmd for Cmd<F, H> {}
 
 impl Cmd<(), Box<dyn Fn()>> {
     pub fn new(name: &'static str) -> Self {
