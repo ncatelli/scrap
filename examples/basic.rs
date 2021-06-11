@@ -10,6 +10,11 @@ fn main() {
         .author("John Doe <jdoe@example.com>")
         .version("1.2.3")
         .with_flag(
+            scrap::Flag::store_true("help", "h", "output help information.")
+                .optional()
+                .with_default(false),
+        )
+        .with_flag(
             scrap::Flag::store_true("version", "v", "output the version of the command.")
                 .optional()
                 .with_default(false),
@@ -19,19 +24,15 @@ fn main() {
                 .optional()
                 .with_default(false),
         )
-        .with_handler(|(version, test)| println!("Version: {}\nTest: {}", version, test));
-
-    println!(
-        "Spasm Basic Example\n\nExample Help Output:\n{}\n",
-        ["-"].iter().cycle().take(40).copied().collect::<String>()
-    );
-    println!("{}\n", cmd.help());
-    println!(
-        "Running Dispatcher:\n{}\n",
-        ["-"].iter().cycle().take(40).copied().collect::<String>()
-    );
+        .with_handler(|((_, version), test)| println!("Version: {}\nTest: {}", version, test));
 
     cmd.evaluate(&args[..])
-        .map(|flag_values| cmd.dispatch(flag_values))
+        .map(|((help, version), test)| {
+            if help {
+                println!("{}", cmd.help())
+            } else {
+                cmd.dispatch(((help, version), test))
+            }
+        })
         .expect("Flags should evaluate correctly");
 }
