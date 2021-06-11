@@ -127,7 +127,7 @@ where
 
     fn help(&self) -> Self::Output {
         format!(
-            "Usage: {} [OPTIONS]\n{}\n\nSubcommands:\n{}",
+            "Usage: {} [OPTIONS]\n{}\nSubcommands:\n{}",
             self.name,
             self.description,
             self.commands.short_help()
