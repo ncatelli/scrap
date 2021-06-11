@@ -486,6 +486,26 @@ pub struct Flag;
 impl IsFlag for Flag {}
 
 impl Flag {
+    /// Provides a convenient helper for generating an ExpectStringValue flag.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use scrap::prelude::v1::*;
+    /// use scrap::*;
+    ///
+    /// assert_eq!(
+    ///     Ok("foo".to_string()),
+    ///     Flag::expect_string("name", "n", "A name.")
+    ///         .evaluate(&["test", "-n", "foo"][..])
+    /// );
+    ///
+    /// assert_eq!(
+    ///     Ok("foo".to_string()),
+    ///     ExpectStringValue::new("name", "n", "A name.")
+    ///         .evaluate(&["test", "-n", "foo"][..])
+    /// );
+    /// ```
     pub fn expect_string(
         name: &'static str,
         short_code: &'static str,
@@ -494,6 +514,26 @@ impl Flag {
         ExpectStringValue::new(name, short_code, description)
     }
 
+    /// Provides a convenient helper for generating an StoreTrue flag.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use scrap::prelude::v1::*;
+    /// use scrap::*;
+    ///
+    /// assert_eq!(
+    ///     Ok(true),
+    ///     Flag::store_true("debug", "d", "Run command in debug mode.")
+    ///         .evaluate(&["test", "-d"][..])
+    /// );
+    ///
+    /// assert_eq!(
+    ///     Ok(true),
+    ///     StoreTrue::new("debug", "d", "Run command in debug mode.")
+    ///         .evaluate(&["test", "-d"][..])
+    /// );
+    /// ```
     pub fn store_true(
         name: &'static str,
         short_code: &'static str,
@@ -502,6 +542,26 @@ impl Flag {
         StoreTrue::new(name, short_code, description)
     }
 
+    /// Provides a convenient helper for generating an StoreFalse flag.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use scrap::prelude::v1::*;
+    /// use scrap::*;
+    ///
+    /// assert_eq!(
+    ///     Ok(false),
+    ///     Flag::store_false("no-wait", "n", "don't wait for a response.")
+    ///         .evaluate(&["test", "-n"][..])
+    /// );
+    ///
+    /// assert_eq!(
+    ///     Ok(false),
+    ///     StoreFalse::new("no-wait", "n", "don't wait for a response." )
+    ///         .evaluate(&["test", "-n"][..])
+    /// );
+    /// ```
     pub fn store_false(
         name: &'static str,
         short_code: &'static str,
