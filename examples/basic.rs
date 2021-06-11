@@ -12,12 +12,12 @@ fn main() {
         .with_flags(
             scrap::Flag::store_true("version", "v", "output the version of the command.")
                 .optional()
-                .with_default(false)
-                .join(
-                    scrap::Flag::store_true("test", "t", "a test flag.")
-                        .optional()
-                        .with_default(false),
-                ),
+                .with_default(false),
+        )
+        .with_flag(
+            scrap::Flag::store_true("test", "t", "a test flag.")
+                .optional()
+                .with_default(false),
         )
         .with_handler(|(version, test)| println!("Version: {}\nTest: {}", version, test));
 
