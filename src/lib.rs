@@ -3,6 +3,23 @@ pub mod prelude;
 #[cfg(test)]
 mod tests;
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum CliError {
+    AmbiguousCommand,
+    FlagEvaluation(String),
+    Unspecified(String),
+}
+
+impl std::fmt::Display for CliError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::AmbiguousCommand => write!(f, "ambiguous command"),
+            Self::FlagEvaluation(name) => write!(f, "unable to evaluate flag: {}", name),
+            Self::Unspecified(e) => write!(f, "{}", e),
+        }
+    }
+}
+
 /// CmdGroup functions as a grouping of multiple dispatchable commands under a
 /// single command grouping.
 ///
@@ -120,7 +137,7 @@ where
             .map(|&bin| std::path::Path::new(bin).file_name())
         {
             Some(Some(name)) if name == self.name => self.commands.evaluate(&input[1..]),
-            _ => Err(format!("no match for command: {}", &self.name)),
+            _ => Err(CliError::AmbiguousCommand),
         }
     }
 }
@@ -220,7 +237,7 @@ where
         ) {
             (Ok(b), Err(_)) => Ok(Either::Left(b)),
             (Err(_), Ok(c)) => Ok(Either::Right(c)),
-            _ => Err("ambiguous command.".to_string()),
+            _ => Err(CliError::AmbiguousCommand),
         }
     }
 }
@@ -452,7 +469,7 @@ where
             .map(|&bin| std::path::Path::new(bin).file_name())
         {
             Some(Some(name)) if name == self.name => self.flags.evaluate(&input[1..]),
-            _ => Err(format!("no match for command: {}", &self.name)),
+            _ => Err(CliError::AmbiguousCommand),
         }
     }
 }
@@ -705,7 +722,7 @@ impl std::fmt::Display for FlagHelpContext {
 
 /// Represents the result of an Evaluatable::evaluate call signifying whether
 /// the call returned an error or correctly evaluated a flag to a type T.
-pub type EvaluateResult<'a, T> = Result<T, String>;
+pub type EvaluateResult<'a, T> = Result<T, CliError>;
 
 /// Evaluatable provides methods for parsing and evaluating input values into a
 /// corresponding concrete type.
@@ -833,10 +850,10 @@ where
     fn evaluate(&self, input: A) -> EvaluateResult<'a, (B, C)> {
         self.evaluator1
             .evaluate(input)
-            .map_err(|e| format!("failed to map left side: {}", e))
+            .map_err(|e| e)
             .and_then(|e1_res| match self.evaluator2.evaluate(input) {
                 Ok(e2_res) => Ok((e1_res, e2_res)),
-                Err(e) => Err(format!("failed to map right side: {}", e)),
+                Err(e) => Err(e),
             })
     }
 }
@@ -1139,7 +1156,7 @@ impl<'a> Evaluatable<'a, &'a [&'a str], String> for ExpectStringValue {
             // Only need the index.
             .map(|(idx, _)| idx)
             .and_then(|idx| input[..].get(idx + 1).map(|&v| v.to_string()))
-            .ok_or_else(|| "No matching value".to_string())
+            .ok_or_else(|| CliError::FlagEvaluation(self.name.to_string()))
     }
 }
 
@@ -1225,7 +1242,7 @@ impl<'a> Evaluatable<'a, &'a [&'a str], bool> for StoreTrue {
                     || (arg == format!("{}{}", "-", self.short_code))
             })
             .map(|_| true)
-            .ok_or_else(|| "No matching value".to_string())
+            .ok_or_else(|| CliError::FlagEvaluation(self.name.to_string()))
     }
 }
 
@@ -1311,7 +1328,7 @@ impl<'a> Evaluatable<'a, &'a [&'a str], bool> for StoreFalse {
                     || (arg == format!("{}{}", "-", self.short_code))
             })
             .map(|_| false)
-            .ok_or_else(|| "No matching value".to_string())
+            .ok_or_else(|| CliError::FlagEvaluation(self.name.to_string()))
     }
 }
 
