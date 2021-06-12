@@ -1352,6 +1352,8 @@ impl ShortHelpable for StoreFalse {
 
 // Unit type
 
+// This implementation exists mostly for cases where a Cmd, or SubCommands
+// object has no flags associated with it.
 impl<'a> Evaluatable<'a, &'a [&'a str], ()> for () {
     fn evaluate(&self, _: &'a [&'a str]) -> EvaluateResult<'a, ()> {
         Ok(())
