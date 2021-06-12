@@ -387,6 +387,16 @@ impl<T, H> Cmd<T, H> {
         self
     }
 
+    /// Returns Cmd with the handler set to the provided function.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use scrap::prelude::v1::*;
+    /// use scrap::*;
+    ///
+    /// Cmd::new("test").with_handler(|_| ());
+    /// ```
     pub fn with_handler<'a, A, B, NH>(self, handler: NH) -> Cmd<T, NH>
     where
         T: Evaluatable<'a, A, B>,
@@ -428,19 +438,6 @@ where
             version: self.version,
             flags: Join::new(self.flags, new_flag),
             handler: self.handler,
-        }
-    }
-}
-
-// Cmd has no flags
-impl<'a, H> Evaluatable<'a, &'a [&'a str], ()> for Cmd<(), H> {
-    fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<()> {
-        match input
-            .get(0)
-            .map(|&bin| std::path::Path::new(bin).file_name())
-        {
-            Some(Some(name)) if name == self.name => Ok(()),
-            _ => Err(format!("no match for command: {}", &self.name)),
         }
     }
 }
@@ -1328,5 +1325,13 @@ impl ShortHelpable for StoreFalse {
             self.description,
             Vec::new(),
         ))
+    }
+}
+
+// Unit type
+
+impl<'a> Evaluatable<'a, &'a [&'a str], ()> for () {
+    fn evaluate(&self, _: &'a [&'a str]) -> EvaluateResult<'a, ()> {
+        Ok(())
     }
 }
