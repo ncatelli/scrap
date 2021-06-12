@@ -7,7 +7,6 @@ mod tests;
 pub enum CliError {
     AmbiguousCommand,
     FlagEvaluation(String),
-    Unspecified(String),
 }
 
 impl std::fmt::Display for CliError {
@@ -15,7 +14,6 @@ impl std::fmt::Display for CliError {
         match self {
             Self::AmbiguousCommand => write!(f, "ambiguous command"),
             Self::FlagEvaluation(name) => write!(f, "unable to evaluate flag: {}", name),
-            Self::Unspecified(e) => write!(f, "{}", e),
         }
     }
 }
@@ -69,6 +67,17 @@ pub struct CmdGroup<C> {
 }
 
 impl CmdGroup<()> {
+    /// Instantiates a new instance of `CmdGroup` with the name field set to
+    /// the passed value. All other fields will be set to their default values.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use scrap::prelude::v1::*;
+    /// use scrap::*;
+    ///
+    /// CmdGroup::new("test");
+    /// ```
     pub fn new(name: &'static str) -> Self {
         Self {
             name,
@@ -79,6 +88,18 @@ impl CmdGroup<()> {
         }
     }
 
+    /// Returns a new instance of `CmdGroup` with the type derived from the value of
+    /// the passed Cmd.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use scrap::prelude::v1::*;
+    /// use scrap::*;
+    ///
+    /// CmdGroup::new("test_group")
+    ///     .with_command(Cmd::new("test"));
+    /// ```
     pub fn with_command<NC>(self, new_cmd: NC) -> CmdGroup<NC> {
         CmdGroup {
             name: self.name,
@@ -91,21 +112,61 @@ impl CmdGroup<()> {
 }
 
 impl<C> CmdGroup<C> {
+    /// Returns CmdGroup with the name field set to the provided value.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use scrap::prelude::v1::*;
+    /// use scrap::*;
+    ///
+    /// CmdGroup::new("test").name("other_test");
+    /// ```
     pub fn name(mut self, name: &'static str) -> Self {
         self.name = name;
         self
     }
 
+    /// Returns CmdGroup with the description field set to the provided value.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use scrap::prelude::v1::*;
+    /// use scrap::*;
+    ///
+    /// CmdGroup::new("test").description("a test command group");
+    /// ```
     pub fn description(mut self, description: &'static str) -> Self {
         self.description = description;
         self
     }
 
+    /// Returns CmdGroup with the author field set to the provided value.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use scrap::prelude::v1::*;
+    /// use scrap::*;
+    ///
+    /// CmdGroup::new("test").description("a test command group");
+    /// ```
     pub fn author(mut self, author: &'static str) -> Self {
         self.author = author;
         self
     }
 
+    /// Returns CmdGroup with the version field set to the provided value.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use scrap::prelude::v1::*;
+    /// use scrap::*;
+    ///
+    /// CmdGroup::new("test").version("0.1.0");
+    /// ```
     pub fn version(mut self, version: &'static str) -> Self {
         self.version = version;
         self
@@ -116,6 +177,18 @@ impl<C> CmdGroup<C>
 where
     C: IsCmd,
 {
+    /// Returns a new instance of `CmdGroup` with the type derived from the value of
+    /// the passed Cmd.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use scrap::prelude::v1::*;
+    /// use scrap::*;
+    ///
+    /// CmdGroup::new("test_group")
+    ///     .with_command(Cmd::new("test"));
+    /// ```
     pub fn with_command<NC>(self, new_cmd: NC) -> CmdGroup<OneOf<C, NC>> {
         CmdGroup {
             name: self.name,
