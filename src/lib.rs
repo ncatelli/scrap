@@ -215,13 +215,24 @@ pub enum Either<A, B> {
 /// ```
 #[derive(Debug)]
 pub struct OneOf<C1, C2> {
-    command1: C1,
-    command2: C2,
+    left: C1,
+    right: C2,
 }
 
 impl<C1, C2> OneOf<C1, C2> {
-    pub fn new(command1: C1, command2: C2) -> Self {
-        Self { command1, command2 }
+    /// Instantiates a new instance of `OneOf` with the types associated with
+    /// the passed values.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use scrap::prelude::v1::*;
+    /// use scrap::*;
+    ///
+    /// OneOf::new(Cmd::new("left"), Cmd::new("right"));
+    /// ```
+    pub fn new(left: C1, right: C2) -> Self {
+        Self { left, right }
     }
 }
 
@@ -231,10 +242,7 @@ where
     C2: Evaluatable<'a, &'a [&'a str], C>,
 {
     fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<Either<B, C>> {
-        match (
-            self.command1.evaluate(&input),
-            self.command2.evaluate(&input),
-        ) {
+        match (self.left.evaluate(&input), self.right.evaluate(&input)) {
             (Ok(b), Err(_)) => Ok(Either::Left(b)),
             (Err(_), Ok(c)) => Ok(Either::Right(c)),
             _ => Err(CliError::AmbiguousCommand),
@@ -249,8 +257,8 @@ where
 {
     fn dispatch(self, flag_values: Either<B, C>) {
         match flag_values {
-            Either::Left(b) => self.command1.dispatch(b),
-            Either::Right(c) => self.command2.dispatch(c),
+            Either::Left(b) => self.left.dispatch(b),
+            Either::Right(c) => self.right.dispatch(c),
         }
     }
 }
@@ -263,11 +271,7 @@ where
     type Output = String;
 
     fn short_help(&self) -> Self::Output {
-        format!(
-            "{}\n{}",
-            self.command1.short_help(),
-            self.command2.short_help()
-        )
+        format!("{}\n{}", self.left.short_help(), self.right.short_help())
     }
 }
 
@@ -318,6 +322,17 @@ pub struct Cmd<F, H> {
 impl<F, H> IsCmd for Cmd<F, H> {}
 
 impl Cmd<(), Box<dyn Fn()>> {
+    /// Instantiates a new instance of `Cmd` with the name field set. All other
+    /// fields will default to initial values (primarily empty strings).
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use scrap::prelude::v1::*;
+    /// use scrap::*;
+    ///
+    /// Cmd::new("test");
+    /// ```
     pub fn new(name: &'static str) -> Self {
         Self {
             name,
@@ -331,6 +346,24 @@ impl Cmd<(), Box<dyn Fn()>> {
 }
 
 impl<H> Cmd<(), H> {
+    /// Returns a new instance of `Cmd` with the type derived from the value of
+    /// the passed Flag.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use scrap::prelude::v1::*;
+    /// use scrap::*;
+    ///
+    /// Cmd::new("test")
+    ///     .with_flag(
+    ///         Flag::expect_string(
+    ///             "log-level",
+    ///             "l",
+    ///             "A given log level setting.",
+    ///         )
+    ///     );
+    /// ```
     pub fn with_flag<NF>(self, new_flag: NF) -> Cmd<NF, H> {
         Cmd {
             name: self.name,
