@@ -14,8 +14,8 @@ fn cmd_should_dispatch_a_valid_handler() {
                 .optional()
                 .with_default(false),
         )
-        .with_handler(|(l, debug)| {
-            format!("(Left: {}, Right: {})", &l, debug);
+        .with_handler(|(n, debug)| {
+            format!("(Left: {}, Right: {})", &n, debug);
         });
 
     assert_eq!(
