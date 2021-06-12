@@ -14,11 +14,11 @@ fn main() {
                 .optional()
                 .with_default(false),
         )
-        .with_flag(
-            scrap::Flag::store_true("version", "v", "output the version of the command.")
-                .optional()
-                .with_default(false),
-        )
+        .with_flag(scrap::Flag::store_true(
+            "version",
+            "v",
+            "output the version of the command.",
+        ))
         .with_flag(
             scrap::Flag::store_true("test", "t", "a test flag.")
                 .optional()
@@ -26,13 +26,17 @@ fn main() {
         )
         .with_handler(|((_, version), test)| println!("Version: {}\nTest: {}", version, test));
 
-    cmd.evaluate(&args[..])
-        .map(|((help, version), test)| {
-            if help {
-                println!("{}", cmd.help())
-            } else {
-                cmd.dispatch(((help, version), test))
-            }
-        })
-        .expect("Flags should evaluate correctly");
+    let help_string = cmd.help();
+    let eval_res = cmd.evaluate(&args[..]).map(|((help, version), test)| {
+        if help {
+            println!("{}", &help_string)
+        } else {
+            cmd.dispatch(((help, version), test))
+        }
+    });
+
+    match eval_res {
+        Ok(_) => (),
+        Err(_) => println!("{}", &help_string),
+    }
 }
