@@ -524,7 +524,9 @@ pub trait Dispatchable<A, B, R> {
     fn dispatch(self, flag_values: B) -> R;
 }
 
-/// Provides short summary help descriptions
+/// Much like Helpable, ShortHelpable is for defining the functionality to
+/// output short, summary, help strings for an implementign type. This is
+/// often used when rolling up a type into an enclosing larger helpstring.
 pub trait ShortHelpable
 where
     Self::Output: std::fmt::Display,
@@ -534,6 +536,9 @@ where
     fn short_help(&self) -> Self::Output;
 }
 
+/// Helpable is for defining a method that outputs a helpstring for an
+/// implementing type. This should be treated as a standalone helpstring not
+/// meant to be composed with other sub-helpstrings.
 pub trait Helpable
 where
     Self::Output: std::fmt::Display,
