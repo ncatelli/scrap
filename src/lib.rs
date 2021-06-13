@@ -323,12 +323,12 @@ where
     }
 }
 
-impl<'a, C1, C2, A, B, C> Dispatchable<A, Either<B, C>, ()> for OneOf<C1, C2>
+impl<'a, C1, C2, A, B, C, R> Dispatchable<A, Either<B, C>, R> for OneOf<C1, C2>
 where
-    C1: Evaluatable<'a, A, B> + Dispatchable<A, B, ()>,
-    C2: Evaluatable<'a, A, C> + Dispatchable<A, C, ()>,
+    C1: Evaluatable<'a, A, B> + Dispatchable<A, B, R>,
+    C2: Evaluatable<'a, A, C> + Dispatchable<A, C, R>,
 {
-    fn dispatch(self, flag_values: Either<B, C>) {
+    fn dispatch(self, flag_values: Either<B, C>) -> R {
         match flag_values {
             Either::Left(b) => self.left.dispatch(b),
             Either::Right(c) => self.right.dispatch(c),
