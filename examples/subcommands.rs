@@ -32,18 +32,13 @@ fn main() {
                 }),
         );
 
-    println!(
-        "Spasm Subcommands Example\n\nExample Help Output:\n{}\n",
-        ["-"].iter().cycle().take(40).copied().collect::<String>()
-    );
-    println!("{}\n", cmd_group.help());
-    println!(
-        "Running Dispatcher:\n{}\n",
-        ["-"].iter().cycle().take(40).copied().collect::<String>()
-    );
-
-    cmd_group
+    let help_string = cmd_group.help();
+    let eval_res = cmd_group
         .evaluate(&args[..])
-        .map(|flag_values| cmd_group.dispatch(flag_values))
-        .expect("Flags should evaluate correctly");
+        .map(|flag_values| cmd_group.dispatch(flag_values));
+
+    match eval_res {
+        Ok(_) => (),
+        Err(_) => println!("{}", &help_string),
+    }
 }
