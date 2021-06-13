@@ -215,11 +215,11 @@ where
     }
 }
 
-impl<'a, C, A, B> Dispatchable<A, B, ()> for CmdGroup<C>
+impl<'a, C, A, B, R> Dispatchable<A, B, R> for CmdGroup<C>
 where
-    C: Evaluatable<'a, A, B> + Dispatchable<A, B, ()>,
+    C: Evaluatable<'a, A, B> + Dispatchable<A, B, R>,
 {
-    fn dispatch(self, flag_values: B) {
+    fn dispatch(self, flag_values: B) -> R {
         self.commands.dispatch(flag_values)
     }
 }
@@ -520,10 +520,10 @@ impl<T, H> Cmd<T, H> {
     ///
     /// Cmd::new("test").with_handler(|_| ());
     /// ```
-    pub fn with_handler<'a, A, B, NH>(self, handler: NH) -> Cmd<T, NH>
+    pub fn with_handler<'a, A, B, NH, R>(self, handler: NH) -> Cmd<T, NH>
     where
         T: Evaluatable<'a, A, B>,
-        NH: Fn(B),
+        NH: Fn(B) -> R,
     {
         Cmd {
             name: self.name,
@@ -616,12 +616,12 @@ where
     }
 }
 
-impl<'a, T, H, A, B> Dispatchable<A, B, ()> for Cmd<T, H>
+impl<'a, T, H, A, B, R> Dispatchable<A, B, R> for Cmd<T, H>
 where
     T: Evaluatable<'a, A, B>,
-    H: Fn(B),
+    H: Fn(B) -> R,
 {
-    fn dispatch(self, flag_values: B) {
+    fn dispatch(self, flag_values: B) -> R {
         (self.handler)(flag_values)
     }
 }
