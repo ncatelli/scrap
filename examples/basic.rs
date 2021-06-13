@@ -14,29 +14,34 @@ fn main() {
                 .optional()
                 .with_default(false),
         )
-        .with_flag(scrap::Flag::store_true(
-            "version",
-            "v",
-            "output the version of the command.",
-        ))
         .with_flag(
             scrap::Flag::store_true("test", "t", "a test flag.")
                 .optional()
                 .with_default(false),
         )
-        .with_handler(|((_, version), test)| println!("Version: {}\nTest: {}", version, test));
+        .with_handler(|(_, test)| {
+            if test {
+                Ok(())
+            } else {
+                Err("Test is false".to_string())
+            }
+        });
 
     let help_string = cmd.help();
-    let eval_res = cmd.evaluate(&args[..]).map(|((help, version), test)| {
-        if help {
-            println!("{}", &help_string)
-        } else {
-            cmd.dispatch(((help, version), test))
-        }
-    });
+    let eval_res = cmd
+        .evaluate(&args[..])
+        .map_err(|e| e.to_string())
+        .and_then(|(help, test)| {
+            if help {
+                println!("{}", &help_string);
+                Ok(())
+            } else {
+                cmd.dispatch((help, test))
+            }
+        });
 
     match eval_res {
-        Ok(_) => (),
-        Err(_) => println!("{}", &help_string),
+        Ok(_) => println!("Test is true"),
+        Err(e) => println!("error: {}\n\n{}", &e, &help_string),
     }
 }
