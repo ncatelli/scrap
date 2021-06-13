@@ -1,8 +1,7 @@
 [package]
 name = "scrap"
-version = "0.1.2"
+version = "1.0.0"
 authors = ["Nate Catelli <ncatelli@packetfire.org>"]
 edition = "2018"
 
 [dependencies]
-parcel = { git = "https://github.com/ncatelli/parcel", tag = "v1.9.1" }

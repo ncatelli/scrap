@@ -1,286 +1,79 @@
-use crate::flag::{Action, Flag, Value, ValueType};
-use crate::{Cmd, Config};
+use super::*;
 
-mod parser;
+#[test]
+fn cmd_should_dispatch_a_valid_handler() {
+    let cmd = Cmd::new("test")
+        .description("a test cmd")
+        .with_flag(
+            Flag::expect_string("name", "n", "A name.")
+                .optional()
+                .with_default("foo".to_string()),
+        )
+        .with_flag(
+            Flag::store_true("debug", "d", "run command in debug mode.")
+                .optional()
+                .with_default(false),
+        )
+        .with_handler(|(n, debug)| {
+            format!("(Left: {}, Right: {})", &n, debug);
+        });
 
-macro_rules! to_string_vec {
-    ($str_vec:expr) => {
-        $str_vec
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect::<Vec<String>>()
-    };
+    assert_eq!(
+        Ok(()),
+        cmd.evaluate(&["test", "-l", "info"][..])
+            .map(|flag_values| cmd.dispatch(flag_values))
+    );
 }
 
 #[test]
-fn should_match_expected_help_message() {
+fn should_generate_expected_helpstring_for_given_command() {
+    assert_eq!("Usage: test [OPTIONS]\na test cmd\nFlags:\n    --name, -n       A name.                                  [(optional), (default: \"foo\")]"
+            .to_string(),
+            Cmd::new("test")
+                .description("a test cmd")
+                .with_flag(WithDefault::<String, _>::new(
+                    "foo",
+                    Optional::new(ExpectStringValue::new("name", "n", "A name.")),
+                ),)
+                .help()
+                .to_string()
+        )
+}
+
+#[test]
+fn should_generate_expected_helpstring_for_given_string_check() {
     assert_eq!(
-        "Usage: example [OPTIONS]\nthis is a test\n\nFlags:\n    --help, -h          print help string",
+        "    --name, -n       A name.                                 ".to_string(),
         format!(
             "{}",
-            Cmd::new()
-                .name("example")
-                .description("this is a test")
-                .author("John Doe <jdoe@example.com>")
-                .version("1.2.3")
+            ExpectStringValue::new("name", "n", "A name.").short_help()
         )
-    );
+    )
 }
 
 #[test]
-fn should_parse_raw_input_vec_to_config() {
-    let input = to_string_vec!(vec!["example", "--version", "-s", "1024"]);
-    let mut expected_config = Config::new();
-    expected_config.insert("help".to_string(), Value::Bool(false));
-    expected_config.insert("version".to_string(), Value::Bool(true));
-    expected_config.insert("size".to_string(), Value::Integer(1024));
-
+fn should_generate_expected_helpstring_for_optional_flag() {
     assert_eq!(
-        expected_config,
-        Cmd::new()
-            .name("example")
-            .description("this is a test")
-            .author("John Doe <jdoe@example.com>")
-            .version("1.2.3")
-            .flag(
-                Flag::new()
-                    .name("version")
-                    .short_code("v")
-                    .action(Action::StoreTrue)
-                    .value_type(ValueType::Bool)
-            )
-            .flag(
-                Flag::new()
-                    .name("size")
-                    .short_code("s")
-                    .action(Action::ExpectSingleValue)
-                    .value_type(ValueType::Integer)
-            )
-            .run(input)
-            .unwrap()
-            .to_config()
-    );
+        "    --log-level, -l  A given log level setting.               [(optional)]".to_string(),
+        Optional::new(ExpectStringValue::new(
+            "log-level",
+            "l",
+            "A given log level setting."
+        ))
+        .short_help()
+        .to_string()
+    )
 }
 
 #[test]
-fn should_set_default_values_on_unprovided_values() {
-    let input = to_string_vec!(vec!["example", "--version"]);
-    let mut expected_config = Config::new();
-    expected_config.insert("help".to_string(), Value::Bool(false));
-    expected_config.insert("version".to_string(), Value::Bool(true));
-    expected_config.insert("size".to_string(), Value::Integer(1024));
-
+fn should_generate_expected_helpstring_for_optional_with_default_flag() {
     assert_eq!(
-        expected_config,
-        Cmd::new()
-            .name("example")
-            .description("this is a test")
-            .author("John Doe <jdoe@example.com>")
-            .version("1.2.3")
-            .flag(
-                Flag::new()
-                    .name("version")
-                    .short_code("v")
-                    .action(Action::StoreTrue)
-                    .value_type(ValueType::Bool)
+            "    --name, -n       A name.                                  [(optional), (default: \"foo\")]".to_string(),
+            WithDefault::<String, _>::new(
+                "foo",
+                Optional::new(ExpectStringValue::new("name", "n", "A name."))
             )
-            .flag(
-                Flag::new()
-                    .name("size")
-                    .short_code("s")
-                    .action(Action::ExpectSingleValue)
-                    .value_type(ValueType::Integer)
-                    .default_value(Value::Integer(1024))
-            )
-            .run(input)
-            .unwrap()
-            .to_config()
-    );
-}
-
-#[test]
-fn should_ignore_invalid_flags() {
-    let input = to_string_vec!(vec!["example", "--version", "-s", "1024"]);
-
-    assert!(Cmd::new()
-        .name("example")
-        .description("this is a test")
-        .author("John Doe <jdoe@example.com>")
-        .version("1.2.3")
-        .flag(
-            Flag::new()
-                .name("version")
-                .short_code("v")
-                .action(Action::StoreTrue)
-                .value_type(ValueType::Bool)
+            .short_help()
+            .to_string()
         )
-        .run(input)
-        .is_err());
-}
-
-#[test]
-fn should_accept_dispatch_handler() {
-    let input = to_string_vec!(vec!["example", "--version"]);
-    let mut expected_config = Config::new();
-    expected_config.insert("version".to_string(), Value::Bool(true));
-    expected_config.insert("help".to_string(), Value::Bool(false));
-
-    assert_eq!(
-        expected_config,
-        Cmd::new()
-            .name("example")
-            .description("this is a test")
-            .author("John Doe <jdoe@example.com>")
-            .version("1.2.3")
-            .flag(
-                Flag::new()
-                    .name("version")
-                    .short_code("v")
-                    .action(Action::StoreTrue)
-                    .value_type(ValueType::Bool)
-            )
-            .handler(Box::new(|_| Ok(0)))
-            .run(input)
-            .unwrap()
-            .to_config()
-    );
-}
-
-#[test]
-fn should_dispatch() {
-    let input = to_string_vec!(vec!["example", "--version"]);
-
-    assert_eq!(
-        Ok(0),
-        Cmd::new()
-            .name("example")
-            .description("this is a test")
-            .author("John Doe <jdoe@example.com>")
-            .version("1.2.3")
-            .flag(
-                Flag::new()
-                    .name("version")
-                    .short_code("v")
-                    .action(Action::StoreTrue)
-                    .value_type(ValueType::Bool)
-            )
-            .handler(Box::new(|_| Ok(0)))
-            .run(input)
-            .unwrap()
-            .dispatch()
-    );
-}
-
-#[test]
-fn should_throw_an_error_if_command_name_does_not_match_input_value() {
-    let input = to_string_vec!(vec!["notexample", "--version"]);
-
-    assert!(Cmd::new()
-        .name("example")
-        .description("this is a test")
-        .author("John Doe <jdoe@example.com>")
-        .version("1.2.3")
-        .flag(
-            Flag::new()
-                .name("version")
-                .short_code("v")
-                .action(Action::StoreTrue)
-                .value_type(ValueType::Bool)
-        )
-        .run(input)
-        .is_err())
-}
-
-#[test]
-fn should_match_command_with_path_prefix() {
-    let input = to_string_vec!(vec!["/usr/bin/example", "--version"]);
-
-    assert!(Cmd::new()
-        .name("example")
-        .description("this is a test")
-        .author("John Doe <jdoe@example.com>")
-        .version("1.2.3")
-        .flag(
-            Flag::new()
-                .name("version")
-                .short_code("v")
-                .action(Action::StoreTrue)
-                .value_type(ValueType::Bool)
-        )
-        .flag(
-            Flag::new()
-                .name("size")
-                .short_code("s")
-                .action(Action::ExpectSingleValue)
-                .value_type(ValueType::Integer)
-                .default_value(Value::Integer(1024))
-        )
-        .run(input)
-        .is_ok());
-}
-#[test]
-fn should_match_subcommand() {
-    let input = to_string_vec!(vec!["/usr/bin/example", "run"]);
-
-    assert_eq!(
-        Ok(0),
-        Cmd::new()
-            .name("example")
-            .description("this is a test")
-            .author("John Doe <jdoe@example.com>")
-            .version("1.2.3")
-            .subcommand(Cmd::new().name("run").handler(Box::new(|_| Ok(0))))
-            .run(input)
-            .unwrap()
-            .dispatch()
-    );
-}
-
-#[test]
-fn should_match_correct_subcommand_when_multiple_are_configured() {
-    let input = to_string_vec!(vec!["/usr/bin/example", "run"]);
-
-    assert_eq!(
-        Ok(1),
-        Cmd::new()
-            .name("example")
-            .description("this is a test")
-            .author("John Doe <jdoe@example.com>")
-            .version("1.2.3")
-            .subcommand(Cmd::new().name("test").handler(Box::new(|_| Ok(0))))
-            .subcommand(Cmd::new().name("run").handler(Box::new(|_| Ok(1))))
-            .run(input)
-            .unwrap()
-            .dispatch()
-    );
-}
-
-#[test]
-fn should_generate_default_subcommand_flag_values() {
-    let input = to_string_vec!(vec!["/usr/bin/example", "run"]);
-    let mut expected_config = Config::new();
-    expected_config.insert("help".to_string(), Value::Bool(false));
-    expected_config.insert("test".to_string(), Value::Integer(1024));
-
-    assert_eq!(
-        expected_config,
-        Cmd::new()
-            .name("example")
-            .description("this is a test")
-            .author("John Doe <jdoe@example.com>")
-            .version("1.2.3")
-            .subcommand(
-                Cmd::new().name("run").handler(Box::new(|_| Ok(0))).flag(
-                    Flag::new()
-                        .name("test")
-                        .short_code("t")
-                        .action(Action::ExpectSingleValue)
-                        .value_type(ValueType::Integer)
-                        .default_value(Value::Integer(1024))
-                )
-            )
-            .run(input)
-            .unwrap()
-            .to_config()
-    );
 }
