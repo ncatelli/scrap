@@ -1,7 +1,7 @@
 # scrap
 [![Code Quality (lint, test)](https://github.com/ncatelli/scrap/actions/workflows/code_quality.yml/badge.svg)](https://github.com/ncatelli/scrap/actions/workflows/code_quality.yml)
 
-A minimal commandline utility framework built with zero external depenencies. This tool attempts to retain type information throughout the entire lifecycle of a command parse and usage with the intent of making as much of usage of this libary compile time verifiable.
+A minimal command-line utility framework built with zero external dependencies. This tool attempts to retain type information throughout the entire lifecycle of a command parse and usage with the intent of making as much of usage of this libary compile time verifiable.
 
 ## Table of Contents
 <!-- TOC -->
