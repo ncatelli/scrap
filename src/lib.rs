@@ -1456,6 +1456,80 @@ impl ShortHelpable for StoreFalse {
     }
 }
 
+// Integer types
+
+macro_rules! generate_integer_evaluators {
+    ($($name:tt, $primitive:ty,)*) => {
+        $(
+        #[derive(Debug)]
+        pub struct $name {
+            name: &'static str,
+            short_code: &'static str,
+            description: &'static str,
+        }
+
+        impl IsFlag for $name {}
+        impl Defaultable for $name {}
+
+        impl $name {
+            #[allow(dead_code)]
+            pub fn new(
+                name: &'static str,
+                short_code: &'static str,
+                description: &'static str,
+            ) -> Self {
+                Self {
+                    name,
+                    short_code,
+                    description,
+                }
+            }
+        }
+
+        impl<'a> Evaluatable<'a, &'a [&'a str], $primitive> for $name {
+            fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, $primitive> {
+                input[..]
+                    .iter()
+                    .enumerate()
+                    .find(|(_, &arg)| {
+                        (arg == format!("{}{}", "--", self.name))
+                            || (arg == format!("{}{}", "-", self.short_code))
+                    })
+                    // Only need the index.
+                    .map(|(idx, _)| idx)
+                    .and_then(|idx| input[..].get(idx + 1).and_then(|&v| v.parse::<$primitive>().ok()))
+                    .ok_or_else(|| CliError::FlagEvaluation(self.name.to_string()))
+            }
+        }
+
+        impl ShortHelpable for $name {
+            type Output = FlagHelpCollector;
+
+            fn short_help(&self) -> Self::Output {
+                FlagHelpCollector::Single(FlagHelpContext::new(
+                    self.name,
+                    self.short_code,
+                    self.description,
+                    Vec::new(),
+                ))
+            }
+        }
+    )*
+    };
+}
+
+#[rustfmt::skip]
+generate_integer_evaluators!(
+    ExpectI8Value, i8,
+    ExpectI16Value, i16,
+    ExpectIValue, i32,
+    ExpectI64Value, i64,
+    ExpectU8Value, u8,
+    ExpectU16Value, u16,
+    ExpectUValue, u32,
+    ExpectU64Value, u64,
+);
+
 // Unit type
 
 // This implementation exists mostly for cases where a Cmd, or SubCommands
