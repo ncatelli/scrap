@@ -747,6 +747,230 @@ impl Flag {
     ) -> StoreFalse {
         StoreFalse::new(name, short_code, description)
     }
+
+    /// Provides a convenient helper for generating an ExpectI8Value flag.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use scrap::prelude::v1::*;
+    /// use scrap::*;
+    ///
+    /// assert_eq!(
+    ///     Ok(60),
+    ///     Flag::expect_i8("timeout", "t", "A timeout.")
+    ///         .evaluate(&["test", "-t", "60"][..])
+    /// );
+    ///
+    /// assert_eq!(
+    ///     Ok(60),
+    ///     ExpectI8Value::new("timeout", "t", "A timeout.")
+    ///         .evaluate(&["test", "-t", "60"][..])
+    /// );
+    /// ```
+    pub fn expect_i8(
+        name: &'static str,
+        short_code: &'static str,
+        description: &'static str,
+    ) -> ExpectI8Value {
+        ExpectI8Value::new(name, short_code, description)
+    }
+
+    /// Provides a convenient helper for generating an ExpectI16Value flag.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use scrap::prelude::v1::*;
+    /// use scrap::*;
+    ///
+    /// assert_eq!(
+    ///     Ok(60),
+    ///     Flag::expect_i16("timeout", "t", "A timeout.")
+    ///         .evaluate(&["test", "-t", "60"][..])
+    /// );
+    ///
+    /// assert_eq!(
+    ///     Ok(60),
+    ///     ExpectI16Value::new("timeout", "t", "A timeout.")
+    ///         .evaluate(&["test", "-t", "60"][..])
+    /// );
+    /// ```
+    pub fn expect_i16(
+        name: &'static str,
+        short_code: &'static str,
+        description: &'static str,
+    ) -> ExpectI16Value {
+        ExpectI16Value::new(name, short_code, description)
+    }
+
+    /// Provides a convenient helper for generating an ExpectI32Value flag.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use scrap::prelude::v1::*;
+    /// use scrap::*;
+    ///
+    /// assert_eq!(
+    ///     Ok(60),
+    ///     Flag::expect_i32("timeout", "t", "A timeout.")
+    ///         .evaluate(&["test", "-t", "60"][..])
+    /// );
+    ///
+    /// assert_eq!(
+    ///     Ok(60),
+    ///     ExpectI32Value::new("timeout", "t", "A timeout.")
+    ///         .evaluate(&["test", "-t", "60"][..])
+    /// );
+    /// ```
+    pub fn expect_i32(
+        name: &'static str,
+        short_code: &'static str,
+        description: &'static str,
+    ) -> ExpectI32Value {
+        ExpectI32Value::new(name, short_code, description)
+    }
+
+    /// Provides a convenient helper for generating an ExpectI64Value flag.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use scrap::prelude::v1::*;
+    /// use scrap::*;
+    ///
+    /// assert_eq!(
+    ///     Ok(60),
+    ///     Flag::expect_i64("timeout", "t", "A timeout.")
+    ///         .evaluate(&["test", "-t", "60"][..])
+    /// );
+    ///
+    /// assert_eq!(
+    ///     Ok(60),
+    ///     ExpectI64Value::new("timeout", "t", "A timeout.")
+    ///         .evaluate(&["test", "-t", "60"][..])
+    /// );
+    /// ```
+    pub fn expect_i64(
+        name: &'static str,
+        short_code: &'static str,
+        description: &'static str,
+    ) -> ExpectI64Value {
+        ExpectI64Value::new(name, short_code, description)
+    }
+
+    /// Provides a convenient helper for generating an ExpectU8Value flag.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use scrap::prelude::v1::*;
+    /// use scrap::*;
+    ///
+    /// assert_eq!(
+    ///     Ok(60),
+    ///     Flag::expect_u8("timeout", "t", "A timeout.")
+    ///         .evaluate(&["test", "-t", "60"][..])
+    /// );
+    ///
+    /// assert_eq!(
+    ///     Ok(60),
+    ///     ExpectU8Value::new("timeout", "t", "A timeout.")
+    ///         .evaluate(&["test", "-t", "60"][..])
+    /// );
+    /// ```
+    pub fn expect_u8(
+        name: &'static str,
+        short_code: &'static str,
+        description: &'static str,
+    ) -> ExpectU8Value {
+        ExpectU8Value::new(name, short_code, description)
+    }
+
+    /// Provides a convenient helper for generating an ExpectU16Value flag.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use scrap::prelude::v1::*;
+    /// use scrap::*;
+    ///
+    /// assert_eq!(
+    ///     Ok(60),
+    ///     Flag::expect_u16("timeout", "t", "A timeout.")
+    ///         .evaluate(&["test", "-t", "60"][..])
+    /// );
+    ///
+    /// assert_eq!(
+    ///     Ok(60),
+    ///     ExpectU16Value::new("timeout", "t", "A timeout.")
+    ///         .evaluate(&["test", "-t", "60"][..])
+    /// );
+    /// ```
+    pub fn expect_u16(
+        name: &'static str,
+        short_code: &'static str,
+        description: &'static str,
+    ) -> ExpectU16Value {
+        ExpectU16Value::new(name, short_code, description)
+    }
+
+    /// Provides a convenient helper for generating an ExpectU32Value flag.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use scrap::prelude::v1::*;
+    /// use scrap::*;
+    ///
+    /// assert_eq!(
+    ///     Ok(60),
+    ///     Flag::expect_u32("timeout", "t", "A timeout.")
+    ///         .evaluate(&["test", "-t", "60"][..])
+    /// );
+    ///
+    /// assert_eq!(
+    ///     Ok(60),
+    ///     ExpectU32Value::new("timeout", "t", "A timeout.")
+    ///         .evaluate(&["test", "-t", "60"][..])
+    /// );
+    /// ```
+    pub fn expect_u32(
+        name: &'static str,
+        short_code: &'static str,
+        description: &'static str,
+    ) -> ExpectU32Value {
+        ExpectU32Value::new(name, short_code, description)
+    }
+
+    /// Provides a convenient helper for generating an ExpectU64Value flag.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use scrap::prelude::v1::*;
+    /// use scrap::*;
+    ///
+    /// assert_eq!(
+    ///     Ok(60),
+    ///     Flag::expect_u64("timeout", "t", "A timeout.")
+    ///         .evaluate(&["test", "-t", "60"][..])
+    /// );
+    ///
+    /// assert_eq!(
+    ///     Ok(60),
+    ///     ExpectU64Value::new("timeout", "t", "A timeout.")
+    ///         .evaluate(&["test", "-t", "60"][..])
+    /// );
+    /// ```
+    pub fn expect_u64(
+        name: &'static str,
+        short_code: &'static str,
+        description: &'static str,
+    ) -> ExpectU64Value {
+        ExpectU64Value::new(name, short_code, description)
+    }
 }
 
 /// FlagHelpCollector provides a helper enum for collecting flag help strings
@@ -1522,11 +1746,11 @@ macro_rules! generate_integer_evaluators {
 generate_integer_evaluators!(
     ExpectI8Value, i8,
     ExpectI16Value, i16,
-    ExpectIValue, i32,
+    ExpectI32Value, i32,
     ExpectI64Value, i64,
     ExpectU8Value, u8,
     ExpectU16Value, u16,
-    ExpectUValue, u32,
+    ExpectU32Value, u32,
     ExpectU64Value, u64,
 );
 
