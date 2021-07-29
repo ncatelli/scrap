@@ -1754,6 +1754,96 @@ generate_integer_evaluators!(
     ExpectU64Value, u64,
 );
 
+/// Defines a marker trait for types that can be opened via the WithOpen
+/// evaluator.
+pub trait Openable {}
+
+/// WithOpen represents an evaluator that can take a filepath as parsed by
+/// `ExpectFilePath` and return an opened file handler for said path. Function
+/// this works much like `WithDefault` in that it is an optional augmentation
+/// for an existing evaluator.
+///
+/// # Example
+///
+/// ```
+/// use scrap::prelude::v1::*;
+/// use scrap::*;
+/// use std::fs::File;
+///
+/// assert!(
+///     WithOpen::new(
+///         ExpectFilePath::new("file", "f", "A file to open")
+///     ).evaluate(&["hello", "--file", "/etc/hostname"][..]).is_ok()
+/// );
+///
+/// assert!(
+///     WithOpen::new(
+///         ExpectFilePath::new("file", "f", "A file to open")
+///     ).evaluate(&["hello", "-f", "/etc/hostname"][..]).is_ok()
+/// );
+///
+/// assert!(
+///     WithOpen::new(
+///         ExpectFilePath::new("file", "f", "A file to open")
+///     ).evaluate(&["hello"][..]).is_err()
+/// );
+/// ```
+#[derive(Debug)]
+pub struct WithOpen<E> {
+    evaluator: E,
+}
+
+impl<E> IsFlag for WithOpen<E> {}
+
+impl<E> WithOpen<E> {
+    /// Instantiates a new of WithOpen for a given type
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use scrap::prelude::v1::*;
+    /// use scrap::*;
+    ///
+    /// WithOpen::new(
+    ///     ExpectFilePath::new("file", "f", "A file to open")
+    /// );
+    /// ```
+    pub fn new(evaluator: E) -> Self {
+        Self { evaluator }
+    }
+}
+
+impl<'a, E, A> Evaluatable<'a, A, std::fs::File> for WithOpen<E>
+where
+    A: 'a,
+    E: Evaluatable<'a, A, String> + Openable,
+{
+    fn evaluate(&self, input: A) -> EvaluateResult<'a, std::fs::File> {
+        self.evaluator.evaluate(input).and_then(|fp| {
+            std::fs::File::open(&fp).map_err(|e| {
+                CliError::FlagEvaluation(format!("unable to open file evaluator: {}", e))
+            })
+        })
+    }
+}
+
+impl<E> ShortHelpable for WithOpen<E>
+where
+    E: ShortHelpable<Output = FlagHelpCollector> + Defaultable,
+{
+    type Output = FlagHelpCollector;
+
+    fn short_help(&self) -> Self::Output {
+        match self.evaluator.short_help() {
+            FlagHelpCollector::Single(fhc) => {
+                FlagHelpCollector::Single(fhc.with_modifier(format!("will_open")))
+            }
+            // this case should never be hit as joined is not defaultable
+            fhcj @ FlagHelpCollector::Joined(_, _) => fhcj,
+        }
+    }
+}
+
 /// ExpectFilePath represents a terminal flag type, that parses and validates a
 /// file exists in a path. Returning the file path as a Rtring.
 ///
@@ -1807,6 +1897,8 @@ impl ExpectFilePath {
         }
     }
 }
+
+impl Openable for ExpectFilePath {}
 
 impl Defaultable for ExpectFilePath {}
 
