@@ -1772,19 +1772,19 @@ pub trait Openable {}
 ///
 /// assert!(
 ///     WithOpen::new(
-///         ExpectFilePath::new("file", "f", "A file to open")
+///         ExpectFilePath::new("file", "f", "A file to open", true, false, true)
 ///     ).evaluate(&["hello", "--file", "/etc/hostname"][..]).is_ok()
 /// );
 ///
 /// assert!(
 ///     WithOpen::new(
-///         ExpectFilePath::new("file", "f", "A file to open")
+///         ExpectFilePath::new("file", "f", "A file to open", true, false, true)
 ///     ).evaluate(&["hello", "-f", "/etc/hostname"][..]).is_ok()
 /// );
 ///
 /// assert!(
 ///     WithOpen::new(
-///         ExpectFilePath::new("file", "f", "A file to open")
+///         ExpectFilePath::new("file", "f", "A file to open", true, false, true)
 ///     ).evaluate(&["hello"][..]).is_err()
 /// );
 /// ```
@@ -1805,7 +1805,7 @@ impl<E> WithOpen<E> {
     /// use scrap::*;
     ///
     /// WithOpen::new(
-    ///     ExpectFilePath::new("file", "f", "A file to open")
+    ///     ExpectFilePath::new("file", "f", "A file to open", true, false, true)
     /// );
     /// ```
     pub fn new(evaluator: E) -> Self {
@@ -1836,10 +1836,10 @@ where
     fn short_help(&self) -> Self::Output {
         match self.evaluator.short_help() {
             FlagHelpCollector::Single(fhc) => {
-                FlagHelpCollector::Single(fhc.with_modifier(format!("will_open")))
+                FlagHelpCollector::Single(fhc.with_modifier("will_open".to_string()))
             }
             // this case should never be hit as joined is not defaultable
-            fhcj @ _ => fhcj,
+            fhcj => fhcj,
         }
     }
 }
