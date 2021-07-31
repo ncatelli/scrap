@@ -1839,7 +1839,7 @@ where
                 FlagHelpCollector::Single(fhc.with_modifier(format!("will_open")))
             }
             // this case should never be hit as joined is not defaultable
-            fhcj @ FlagHelpCollector::Joined(_, _) => fhcj,
+            fhcj @ _ => fhcj,
         }
     }
 }
@@ -1855,14 +1855,14 @@ where
 ///
 /// assert_eq!(
 ///     Ok("/etc/hostname".to_string()),
-///     ExpectFilePath::new("file", "f", "A filepath to read").evaluate(&["hello", "--file", "/etc/hostname"][..])
+///     ExpectFilePath::new("file", "f", "A filepath to read", true, false, true).evaluate(&["hello", "--file", "/etc/hostname"][..])
 /// );
 ///
 /// assert_eq!(
 ///     Ok("/etc/hostname".to_string()),
 ///     WithDefault::new(
 ///         "/etc/hostname".to_string(),
-///         Optional::new(ExpectFilePath::new("file", "f", "A filepath to read"))
+///         Optional::new(ExpectFilePath::new("file", "f", "A filepath to read", true, false, true))
 ///     )
 ///     .evaluate(&["hello"][..])
 /// );
@@ -1872,6 +1872,9 @@ pub struct ExpectFilePath {
     name: &'static str,
     short_code: &'static str,
     description: &'static str,
+    readable: bool,
+    writable: bool,
+    exists: bool,
 }
 
 impl IsFlag for ExpectFilePath {}
@@ -1886,14 +1889,24 @@ impl ExpectFilePath {
     /// use scrap::prelude::v1::*;
     /// use scrap::*;
     ///
-    /// ExpectFilePath::new("file", "f", "A file name.");
+    /// ExpectFilePath::new("file", "f", "A file name.", true, false, true);
     /// ```
     #[allow(dead_code)]
-    pub fn new(name: &'static str, short_code: &'static str, description: &'static str) -> Self {
+    pub fn new(
+        name: &'static str,
+        short_code: &'static str,
+        description: &'static str,
+        readable: bool,
+        writable: bool,
+        exists: bool,
+    ) -> Self {
         Self {
             name,
             short_code,
             description,
+            readable,
+            writable,
+            exists,
         }
     }
 }
@@ -1904,7 +1917,7 @@ impl Defaultable for ExpectFilePath {}
 
 impl<'a> Evaluatable<'a, &'a [&'a str], String> for ExpectFilePath {
     fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, String> {
-        use std::path::Path;
+        use std::fs::OpenOptions;
 
         input[..]
             .iter()
@@ -1918,8 +1931,17 @@ impl<'a> Evaluatable<'a, &'a [&'a str], String> for ExpectFilePath {
             .and_then(|idx| {
                 input[..]
                     .get(idx + 1)
-                    .and_then(|&p| Path::new(p).is_file().then(|| p))
-                    .map(|v| v.to_owned())
+                    // check if the file exists with the corresponding flags.
+                    .and_then(|p| {
+                        OpenOptions::new()
+                            .read(self.readable)
+                            .write(self.writable)
+                            .create(!self.exists)
+                            .open(p)
+                            .ok()
+                            .map(|_| p)
+                    })
+                    .map(|&v| v.to_owned())
             })
             .ok_or_else(|| CliError::FlagEvaluation(self.name.to_string()))
     }
