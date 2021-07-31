@@ -1609,7 +1609,7 @@ impl ShortHelpable for StoreTrue {
 ///
 /// assert_eq!(
 ///     Ok(false),
-///     StoreFalse::new("no-wait", "n", "don't wait for a response.").evaluate(&["hello", "--no-wait"][..])
+///     StoreFalse::new("no-wait", "n", "don't wait for a response.").evaluate(&["hello", "-n"][..])
 /// );
 ///
 /// assert_eq!(
@@ -1753,6 +1753,212 @@ generate_integer_evaluators!(
     ExpectU32Value, u32,
     ExpectU64Value, u64,
 );
+
+/// Defines a marker trait for types that can be opened via the WithOpen
+/// evaluator.
+pub trait Openable {}
+
+/// WithOpen represents an evaluator that can take a filepath as parsed by
+/// `ExpectFilePath` and return an opened file handler for said path. Function
+/// this works much like `WithDefault` in that it is an optional augmentation
+/// for an existing evaluator.
+///
+/// # Example
+///
+/// ```
+/// use scrap::prelude::v1::*;
+/// use scrap::*;
+/// use std::fs::File;
+///
+/// assert!(
+///     WithOpen::new(
+///         ExpectFilePath::new("file", "f", "A file to open", true, false, true)
+///     ).evaluate(&["hello", "--file", "/etc/hostname"][..]).is_ok()
+/// );
+///
+/// assert!(
+///     WithOpen::new(
+///         ExpectFilePath::new("file", "f", "A file to open", true, false, true)
+///     ).evaluate(&["hello", "-f", "/etc/hostname"][..]).is_ok()
+/// );
+///
+/// assert!(
+///     WithOpen::new(
+///         ExpectFilePath::new("file", "f", "A file to open", true, false, true)
+///     ).evaluate(&["hello"][..]).is_err()
+/// );
+/// ```
+#[derive(Debug)]
+pub struct WithOpen<E> {
+    evaluator: E,
+}
+
+impl<E> IsFlag for WithOpen<E> {}
+
+impl<E> WithOpen<E> {
+    /// Instantiates a new of WithOpen for a given type
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use scrap::prelude::v1::*;
+    /// use scrap::*;
+    ///
+    /// WithOpen::new(
+    ///     ExpectFilePath::new("file", "f", "A file to open", true, false, true)
+    /// );
+    /// ```
+    pub fn new(evaluator: E) -> Self {
+        Self { evaluator }
+    }
+}
+
+impl<'a, E, A> Evaluatable<'a, A, std::fs::File> for WithOpen<E>
+where
+    A: 'a,
+    E: Evaluatable<'a, A, String> + Openable,
+{
+    fn evaluate(&self, input: A) -> EvaluateResult<'a, std::fs::File> {
+        self.evaluator.evaluate(input).and_then(|fp| {
+            std::fs::File::open(&fp).map_err(|e| {
+                CliError::FlagEvaluation(format!("unable to open file evaluator: {}", e))
+            })
+        })
+    }
+}
+
+impl<E> ShortHelpable for WithOpen<E>
+where
+    E: ShortHelpable<Output = FlagHelpCollector> + Defaultable,
+{
+    type Output = FlagHelpCollector;
+
+    fn short_help(&self) -> Self::Output {
+        match self.evaluator.short_help() {
+            FlagHelpCollector::Single(fhc) => {
+                FlagHelpCollector::Single(fhc.with_modifier("will_open".to_string()))
+            }
+            // this case should never be hit as joined is not defaultable
+            fhcj => fhcj,
+        }
+    }
+}
+
+/// ExpectFilePath represents a terminal flag type, that parses and validates a
+/// file exists in a path. Returning the file path as a Rtring.
+///
+/// # Example
+///
+/// ```
+/// use scrap::prelude::v1::*;
+/// use scrap::*;
+///
+/// assert_eq!(
+///     Ok("/etc/hostname".to_string()),
+///     ExpectFilePath::new("file", "f", "A filepath to read", true, false, true).evaluate(&["hello", "--file", "/etc/hostname"][..])
+/// );
+///
+/// assert_eq!(
+///     Ok("/etc/hostname".to_string()),
+///     WithDefault::new(
+///         "/etc/hostname".to_string(),
+///         Optional::new(ExpectFilePath::new("file", "f", "A filepath to read", true, false, true))
+///     )
+///     .evaluate(&["hello"][..])
+/// );
+/// ```
+#[derive(Debug)]
+pub struct ExpectFilePath {
+    name: &'static str,
+    short_code: &'static str,
+    description: &'static str,
+    readable: bool,
+    writable: bool,
+    exists: bool,
+}
+
+impl IsFlag for ExpectFilePath {}
+
+impl ExpectFilePath {
+    /// Instantiates a new instance of ExpectFilePath with a given flag name,
+    /// shortcode and description.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use scrap::prelude::v1::*;
+    /// use scrap::*;
+    ///
+    /// ExpectFilePath::new("file", "f", "A file name.", true, false, true);
+    /// ```
+    #[allow(dead_code)]
+    pub fn new(
+        name: &'static str,
+        short_code: &'static str,
+        description: &'static str,
+        readable: bool,
+        writable: bool,
+        exists: bool,
+    ) -> Self {
+        Self {
+            name,
+            short_code,
+            description,
+            readable,
+            writable,
+            exists,
+        }
+    }
+}
+
+impl Openable for ExpectFilePath {}
+
+impl Defaultable for ExpectFilePath {}
+
+impl<'a> Evaluatable<'a, &'a [&'a str], String> for ExpectFilePath {
+    fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, String> {
+        use std::fs::OpenOptions;
+
+        input[..]
+            .iter()
+            .enumerate()
+            .find(|(_, &arg)| {
+                (arg == format!("{}{}", "--", self.name))
+                    || (arg == format!("{}{}", "-", self.short_code))
+            })
+            // Only need the index.
+            .map(|(idx, _)| idx)
+            .and_then(|idx| {
+                input[..]
+                    .get(idx + 1)
+                    // check if the file exists with the corresponding flags.
+                    .and_then(|p| {
+                        OpenOptions::new()
+                            .read(self.readable)
+                            .write(self.writable)
+                            .create(!self.exists)
+                            .open(p)
+                            .ok()
+                            .map(|_| p)
+                    })
+                    .map(|&v| v.to_owned())
+            })
+            .ok_or_else(|| CliError::FlagEvaluation(self.name.to_string()))
+    }
+}
+
+impl ShortHelpable for ExpectFilePath {
+    type Output = FlagHelpCollector;
+
+    fn short_help(&self) -> Self::Output {
+        FlagHelpCollector::Single(FlagHelpContext::new(
+            self.name,
+            self.short_code,
+            self.description,
+            Vec::new(),
+        ))
+    }
+}
 
 // Unit type
 
