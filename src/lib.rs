@@ -315,7 +315,7 @@ where
     C2: Evaluatable<'a, &'a [&'a str], C>,
 {
     fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<Either<B, C>> {
-        match (self.left.evaluate(&input), self.right.evaluate(&input)) {
+        match (self.left.evaluate(input), self.right.evaluate(input)) {
             (Ok(b), Err(_)) => Ok(Either::Left(b)),
             (Err(_), Ok(c)) => Ok(Either::Right(c)),
             _ => Err(CliError::AmbiguousCommand),

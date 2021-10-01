@@ -36,7 +36,6 @@ fn should_generate_expected_helpstring_for_given_command() {
                     Optional::new(ExpectStringValue::new("name", "n", "A name.")),
                 ),)
                 .help()
-                .to_string()
         )
 }
 
