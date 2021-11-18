@@ -710,7 +710,7 @@ impl Flag {
     ///
     /// assert_eq!(
     ///     Ok(true),
-    ///     StoreTrue::new("debug", "d", "Run command in debug mode.")
+    ///     FlagWithValue::new("debug", "d", "Run command in debug mode.", ValueOnMatch::new(true))
     ///         .evaluate(&["test", "-d"][..])
     /// );
     /// ```
@@ -718,8 +718,8 @@ impl Flag {
         name: &'static str,
         short_code: &'static str,
         description: &'static str,
-    ) -> StoreTrue {
-        StoreTrue::new(name, short_code, description)
+    ) -> FlagWithValue<ValueOnMatch<bool>> {
+        FlagWithValue::new(name, short_code, description, ValueOnMatch::new(true))
     }
 
     /// Provides a convenient helper for generating an StoreFalse flag.
@@ -738,7 +738,7 @@ impl Flag {
     ///
     /// assert_eq!(
     ///     Ok(false),
-    ///     StoreFalse::new("no-wait", "n", "don't wait for a response." )
+    ///     FlagWithValue::new("no-wait", "n", "don't wait for a response.", ValueOnMatch::new(false))
     ///         .evaluate(&["test", "-n"][..])
     /// );
     /// ```
@@ -746,8 +746,8 @@ impl Flag {
         name: &'static str,
         short_code: &'static str,
         description: &'static str,
-    ) -> StoreFalse {
-        StoreFalse::new(name, short_code, description)
+    ) -> FlagWithValue<ValueOnMatch<bool>> {
+        FlagWithValue::new(name, short_code, description, ValueOnMatch::new(false))
     }
 
     /// Provides a convenient helper for generating an ExpectI8Value flag.
@@ -1522,9 +1522,7 @@ impl ShortHelpable for ExpectStringValue {
 /// ```
 #[derive(Debug)]
 pub struct StoreTrue {
-    name: &'static str,
-    short_code: &'static str,
-    description: &'static str,
+    inner: FlagWithValue<ValueOnMatch<bool>>,
 }
 
 impl IsFlag for StoreTrue {}
@@ -1545,24 +1543,14 @@ impl StoreTrue {
     #[allow(dead_code)]
     pub fn new(name: &'static str, short_code: &'static str, description: &'static str) -> Self {
         Self {
-            name,
-            short_code,
-            description,
+            inner: FlagWithValue::new(name, short_code, description, ValueOnMatch::new(true)),
         }
     }
 }
 
 impl<'a> Evaluatable<'a, &'a [&'a str], bool> for StoreTrue {
     fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, bool> {
-        input[..]
-            .iter()
-            .enumerate()
-            .find(|(_, &arg)| {
-                (arg == format!("{}{}", "--", self.name))
-                    || (arg == format!("{}{}", "-", self.short_code))
-            })
-            .map(|_| true)
-            .ok_or_else(|| CliError::FlagEvaluation(self.name.to_string()))
+        self.inner.evaluate(input)
     }
 }
 
@@ -1570,12 +1558,7 @@ impl ShortHelpable for StoreTrue {
     type Output = FlagHelpCollector;
 
     fn short_help(&self) -> Self::Output {
-        FlagHelpCollector::Single(FlagHelpContext::new(
-            self.name,
-            self.short_code,
-            self.description,
-            Vec::new(),
-        ))
+        self.inner.short_help()
     }
 }
 
@@ -1608,9 +1591,7 @@ impl ShortHelpable for StoreTrue {
 /// ```
 #[derive(Debug)]
 pub struct StoreFalse {
-    name: &'static str,
-    short_code: &'static str,
-    description: &'static str,
+    inner: FlagWithValue<ValueOnMatch<bool>>,
 }
 
 impl IsFlag for StoreFalse {}
@@ -1631,24 +1612,14 @@ impl StoreFalse {
     #[allow(dead_code)]
     pub fn new(name: &'static str, short_code: &'static str, description: &'static str) -> Self {
         Self {
-            name,
-            short_code,
-            description,
+            inner: FlagWithValue::new(name, short_code, description, ValueOnMatch::new(false)),
         }
     }
 }
 
 impl<'a> Evaluatable<'a, &'a [&'a str], bool> for StoreFalse {
     fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, bool> {
-        input[..]
-            .iter()
-            .enumerate()
-            .find(|(_, &arg)| {
-                (arg == format!("{}{}", "--", self.name))
-                    || (arg == format!("{}{}", "-", self.short_code))
-            })
-            .map(|_| false)
-            .ok_or_else(|| CliError::FlagEvaluation(self.name.to_string()))
+        self.inner.evaluate(input)
     }
 }
 
@@ -1656,12 +1627,7 @@ impl ShortHelpable for StoreFalse {
     type Output = FlagHelpCollector;
 
     fn short_help(&self) -> Self::Output {
-        FlagHelpCollector::Single(FlagHelpContext::new(
-            self.name,
-            self.short_code,
-            self.description,
-            Vec::new(),
-        ))
+        self.inner.short_help()
     }
 }
 
@@ -2032,14 +1998,13 @@ pub trait PositionalArgumentValue<'a, A, B>: Evaluatable<'a, A, B> {
     fn evaluate_at(&self, input: A, pos: usize) -> EvaluateResult<'a, B>;
 }
 
+/// Represents a String argument
 #[derive(Debug, Clone, Copy)]
 pub struct StringArgument;
 
 impl<'a> PositionalArgumentValue<'a, &'a [&'a str], String> for StringArgument {
     fn evaluate_at(&self, input: &'a [&'a str], pos: usize) -> EvaluateResult<'a, String> {
-        let sliced_input = &input[pos..];
-
-        self.evaluate(sliced_input)
+        self.evaluate(&input[pos..])
     }
 }
 
@@ -2049,5 +2014,28 @@ impl<'a> Evaluatable<'a, &'a [&'a str], String> for StringArgument {
             .get(0)
             .map(|v| v.to_string())
             .ok_or(CliError::ValueEvaluation)
+    }
+}
+
+#[derive(Debug)]
+pub struct ValueOnMatch<V> {
+    value: V,
+}
+
+impl<V> ValueOnMatch<V> {
+    pub fn new(value: V) -> Self {
+        Self { value }
+    }
+}
+
+impl<'a, V: Clone> PositionalArgumentValue<'a, &'a [&'a str], V> for ValueOnMatch<V> {
+    fn evaluate_at(&self, input: &'a [&'a str], pos: usize) -> EvaluateResult<'a, V> {
+        self.evaluate(&input[pos..])
+    }
+}
+
+impl<'a, V: Clone> Evaluatable<'a, &'a [&'a str], V> for ValueOnMatch<V> {
+    fn evaluate(&self, _: &'a [&'a str]) -> EvaluateResult<'a, V> {
+        Ok(self.value.clone())
     }
 }
