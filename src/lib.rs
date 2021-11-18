@@ -6,6 +6,7 @@ mod tests;
 #[derive(Debug, Clone, PartialEq)]
 pub enum CliError {
     AmbiguousCommand,
+    ValueEvaluation,
     FlagEvaluation(String),
 }
 
@@ -13,6 +14,7 @@ impl std::fmt::Display for CliError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::AmbiguousCommand => write!(f, "ambiguous command"),
+            Self::ValueEvaluation => write!(f, "value missmatch"),
             Self::FlagEvaluation(name) => write!(f, "unable to evaluate flag: {}", name),
         }
     }
@@ -664,7 +666,7 @@ pub struct Flag;
 impl IsFlag for Flag {}
 
 impl Flag {
-    /// Provides a convenient helper for generating an ExpectStringValue flag.
+    /// Provides a convenient helper for generating an string evaluatable flag flag.
     ///
     /// # Examples
     ///
@@ -680,7 +682,7 @@ impl Flag {
     ///
     /// assert_eq!(
     ///     Ok("foo".to_string()),
-    ///     ExpectStringValue::new("name", "n", "A name.")
+    ///     FlagWithValue::new("name", "n", "A name.", StringArgument)
     ///         .evaluate(&["test", "-n", "foo"][..])
     /// );
     /// ```
@@ -688,8 +690,8 @@ impl Flag {
         name: &'static str,
         short_code: &'static str,
         description: &'static str,
-    ) -> ExpectStringValue {
-        ExpectStringValue::new(name, short_code, description)
+    ) -> FlagWithValue<StringArgument> {
+        FlagWithValue::new(name, short_code, description, StringArgument)
     }
 
     /// Provides a convenient helper for generating an StoreTrue flag.
@@ -1142,18 +1144,19 @@ where
 /// assert_eq!(
 ///     Ok(("foo".to_string(), "info".to_string())),
 ///     Join::new(
-///         ExpectStringValue::new("name", "n", "A name."),
-///         ExpectStringValue::new("log-level", "l", "A given log level setting."),
+///         FlagWithValue::new("name", "n", "A name.", StringArgument),
+///         FlagWithValue::new("log-level", "l", "A given log level setting.", StringArgument),
 ///     )
 ///     .evaluate(&input[..])
 /// );
 /// assert_eq!(
 ///     Ok(("foo".to_string(), "info".to_string())),
 ///     Flag::expect_string("name", "n", "A name.")
-///         .join(ExpectStringValue::new(
+///         .join(FlagWithValue::new(
 ///             "log-level",
 ///             "l",
-///             "A given log level setting."
+///             "A given log level setting.",
+///             StringArgument
 ///         ))
 ///         .evaluate(&input[..])
 /// );
@@ -1225,7 +1228,7 @@ where
     /// use scrap::prelude::v1::*;
     /// use scrap::*;
     ///
-    /// ExpectStringValue::new("name", "n", "A name.").optional().with_default("foo".to_string());
+    /// FlagWithValue::new("name", "n", "A name.", StringArgument).optional().with_default("foo".to_string());
     /// ```
     fn with_default<D>(self, default: D) -> WithDefault<D, Self> {
         WithDefault::new(default, self)
@@ -1240,7 +1243,7 @@ where
     /// use scrap::prelude::v1::*;
     /// use scrap::*;
     ///
-    /// ExpectStringValue::new("name", "n", "A name.").optional();
+    /// FlagWithValue::new("name", "n", "A name.", StringArgument).optional();
     /// ```
     fn optional(self) -> Optional<Self> {
         Optional::new(self)
@@ -1264,7 +1267,7 @@ where
 ///     Ok("foo".to_string()),
 ///     WithDefault::new(
 ///         "foo",
-///         Optional::new(ExpectStringValue::new("name", "n", "A name."))
+///         Optional::new(FlagWithValue::new("name", "n", "A name.", StringArgument))
 ///     )
 ///     .evaluate(&input[..])
 /// );
@@ -1296,7 +1299,7 @@ impl<B, E> WithDefault<B, E> {
     ///
     /// WithDefault::<String, _>::new(
     ///     "foo",
-    ///     Optional::new(ExpectStringValue::new("name", "n", "A name."))
+    ///     Optional::new(FlagWithValue::new("name", "n", "A name.", StringArgument))
     /// );
     /// ```
     pub fn new<D>(default: D, evaluator: E) -> Self
@@ -1355,23 +1358,24 @@ where
 ///
 /// assert_eq!(
 ///     Ok(Some("foo".to_string())),
-///     Optional::new(ExpectStringValue::new("name", "n", "A name.")).evaluate(&input[..])
+///     Optional::new(FlagWithValue::new("name", "n", "A name.", StringArgument)).evaluate(&input[..])
 /// );
 ///
 /// // validate boxed syntax works
 /// assert_eq!(
 ///     Ok(Some("foo".to_string())),
-///     ExpectStringValue::new("name", "n", "A name.")
+///     FlagWithValue::new("name", "n", "A name.", StringArgument)
 ///         .optional()
 ///         .evaluate(&input[..])
 /// );
 ///
 /// assert_eq!(
 ///     Ok(None),
-///     Optional::new(ExpectStringValue::new(
+///     Optional::new(FlagWithValue::new(
 ///         "log-level",
 ///         "l",
-///         "A given log level setting."
+///         "A given log level setting.",
+///         StringArgument
 ///     ))
 ///     .evaluate(&input[..])
 /// );
@@ -1394,7 +1398,7 @@ impl<E> Optional<E> {
     /// use scrap::prelude::v1::*;
     /// use scrap::*;
     ///
-    /// Optional::new(ExpectStringValue::new("name", "n", "A name."));
+    /// Optional::new(FlagWithValue::new("name", "n", "A name.", StringArgument));
     /// ```
     pub fn new(evaluator: E) -> Self {
         Self { evaluator }
@@ -1448,9 +1452,7 @@ where
 /// ```
 #[derive(Debug)]
 pub struct ExpectStringValue {
-    name: &'static str,
-    short_code: &'static str,
-    description: &'static str,
+    inner: FlagWithValue<StringArgument>,
 }
 
 impl IsFlag for ExpectStringValue {}
@@ -1470,9 +1472,7 @@ impl ExpectStringValue {
     #[allow(dead_code)]
     pub fn new(name: &'static str, short_code: &'static str, description: &'static str) -> Self {
         Self {
-            name,
-            short_code,
-            description,
+            inner: FlagWithValue::new(name, short_code, description, StringArgument),
         }
     }
 }
@@ -1481,17 +1481,7 @@ impl Defaultable for ExpectStringValue {}
 
 impl<'a> Evaluatable<'a, &'a [&'a str], String> for ExpectStringValue {
     fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, String> {
-        input[..]
-            .iter()
-            .enumerate()
-            .find(|(_, &arg)| {
-                (arg == format!("{}{}", "--", self.name))
-                    || (arg == format!("{}{}", "-", self.short_code))
-            })
-            // Only need the index.
-            .map(|(idx, _)| idx)
-            .and_then(|idx| input[..].get(idx + 1).map(|&v| v.to_string()))
-            .ok_or_else(|| CliError::FlagEvaluation(self.name.to_string()))
+        self.inner.evaluate(input)
     }
 }
 
@@ -1499,12 +1489,7 @@ impl ShortHelpable for ExpectStringValue {
     type Output = FlagHelpCollector;
 
     fn short_help(&self) -> Self::Output {
-        FlagHelpCollector::Single(FlagHelpContext::new(
-            self.name,
-            self.short_code,
-            self.description,
-            Vec::new(),
-        ))
+        self.inner.short_help()
     }
 }
 
@@ -1967,5 +1952,102 @@ impl ShortHelpable for ExpectFilePath {
 impl<'a> Evaluatable<'a, &'a [&'a str], ()> for () {
     fn evaluate(&self, _: &'a [&'a str]) -> EvaluateResult<'a, ()> {
         Ok(())
+    }
+}
+
+#[derive(Debug)]
+pub struct FlagWithValue<V> {
+    name: &'static str,
+    short_code: &'static str,
+    description: &'static str,
+    value: V,
+}
+
+impl<V> IsFlag for FlagWithValue<V> {}
+
+impl<V> FlagWithValue<V> {
+    /// Instantiates a new instance of FlagWithValue with a given flag name,
+    /// shortcode and description.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use scrap::prelude::v1::*;
+    /// use scrap::*;
+    ///
+    /// FlagWithValue::new("name", "n", "A name.", StringArgument);
+    /// ```
+    #[allow(dead_code)]
+    pub fn new(
+        name: &'static str,
+        short_code: &'static str,
+        description: &'static str,
+        value: V,
+    ) -> Self {
+        Self {
+            name,
+            short_code,
+            description,
+            value,
+        }
+    }
+}
+
+impl<V> Defaultable for FlagWithValue<V> {}
+
+impl<'a, V, B> Evaluatable<'a, &'a [&'a str], B> for FlagWithValue<V>
+where
+    V: PositionalArgumentValue<'a, &'a [&'a str], B>,
+{
+    fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<B> {
+        input[..]
+            .iter()
+            .enumerate()
+            .find(|(_, &arg)| {
+                (arg == format!("{}{}", "--", self.name))
+                    || (arg == format!("{}{}", "-", self.short_code))
+            })
+            // Only need the index.
+            .map(|(idx, _)| idx)
+            .and_then(|idx| self.value.evaluate_at(input, idx + 1).ok())
+            .ok_or_else(|| CliError::FlagEvaluation(self.name.to_string()))
+    }
+}
+
+impl<V> ShortHelpable for FlagWithValue<V> {
+    type Output = FlagHelpCollector;
+
+    fn short_help(&self) -> Self::Output {
+        FlagHelpCollector::Single(FlagHelpContext::new(
+            self.name,
+            self.short_code,
+            self.description,
+            Vec::new(),
+        ))
+    }
+}
+
+/// PositionalArgumentValue Provides a value type for evaluating positionally.
+pub trait PositionalArgumentValue<'a, A, B>: Evaluatable<'a, A, B> {
+    fn evaluate_at(&self, input: A, pos: usize) -> EvaluateResult<'a, B>;
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct StringArgument;
+
+impl<'a> PositionalArgumentValue<'a, &'a [&'a str], String> for StringArgument {
+    fn evaluate_at(&self, input: &'a [&'a str], pos: usize) -> EvaluateResult<'a, String> {
+        let sliced_input = &input[pos..];
+
+        self.evaluate(sliced_input)
+    }
+}
+
+impl<'a> Evaluatable<'a, &'a [&'a str], String> for StringArgument {
+    fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, String> {
+        input
+            .get(0)
+            .map(|v| v.to_string())
+            .ok_or(CliError::ValueEvaluation)
     }
 }

@@ -15,3 +15,5 @@ pub use crate::IsFlag;
 
 /// Defines behaviors for associating help strings with a given type.
 pub use crate::{Helpable, ShortHelpable};
+
+pub use crate::PositionalArgumentValue;
