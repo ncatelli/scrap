@@ -682,7 +682,7 @@ impl Flag {
     ///
     /// assert_eq!(
     ///     Ok("foo".to_string()),
-    ///     FlagWithValue::new("name", "n", "A name.", StringArgument)
+    ///     FlagWithValue::new("name", "n", "A name.", StringValue)
     ///         .evaluate(&["test", "-n", "foo"][..])
     /// );
     /// ```
@@ -690,8 +690,8 @@ impl Flag {
         name: &'static str,
         short_code: &'static str,
         description: &'static str,
-    ) -> FlagWithValue<StringArgument> {
-        FlagWithValue::new(name, short_code, description, StringArgument)
+    ) -> FlagWithValue<StringValue> {
+        FlagWithValue::new(name, short_code, description, StringValue)
     }
 
     /// Provides a convenient helper for generating an StoreTrue flag.
@@ -766,7 +766,7 @@ impl Flag {
     ///
     /// assert_eq!(
     ///     Ok(60),
-    ///     ExpectI8Value::new("timeout", "t", "A timeout.")
+    ///     FlagWithValue::new("timeout", "t", "A timeout.", I8Value)
     ///         .evaluate(&["test", "-t", "60"][..])
     /// );
     /// ```
@@ -774,8 +774,8 @@ impl Flag {
         name: &'static str,
         short_code: &'static str,
         description: &'static str,
-    ) -> ExpectI8Value {
-        ExpectI8Value::new(name, short_code, description)
+    ) -> FlagWithValue<I8Value> {
+        FlagWithValue::new(name, short_code, description, I8Value)
     }
 
     /// Provides a convenient helper for generating an ExpectI16Value flag.
@@ -794,7 +794,7 @@ impl Flag {
     ///
     /// assert_eq!(
     ///     Ok(60),
-    ///     ExpectI16Value::new("timeout", "t", "A timeout.")
+    ///     FlagWithValue::new("timeout", "t", "A timeout.", I16Value)
     ///         .evaluate(&["test", "-t", "60"][..])
     /// );
     /// ```
@@ -802,8 +802,8 @@ impl Flag {
         name: &'static str,
         short_code: &'static str,
         description: &'static str,
-    ) -> ExpectI16Value {
-        ExpectI16Value::new(name, short_code, description)
+    ) -> FlagWithValue<I16Value> {
+        FlagWithValue::new(name, short_code, description, I16Value)
     }
 
     /// Provides a convenient helper for generating an ExpectI32Value flag.
@@ -822,7 +822,7 @@ impl Flag {
     ///
     /// assert_eq!(
     ///     Ok(60),
-    ///     ExpectI32Value::new("timeout", "t", "A timeout.")
+    ///     FlagWithValue::new("timeout", "t", "A timeout.", I32Value)
     ///         .evaluate(&["test", "-t", "60"][..])
     /// );
     /// ```
@@ -830,8 +830,8 @@ impl Flag {
         name: &'static str,
         short_code: &'static str,
         description: &'static str,
-    ) -> ExpectI32Value {
-        ExpectI32Value::new(name, short_code, description)
+    ) -> FlagWithValue<I32Value> {
+        FlagWithValue::new(name, short_code, description, I32Value)
     }
 
     /// Provides a convenient helper for generating an ExpectI64Value flag.
@@ -850,7 +850,7 @@ impl Flag {
     ///
     /// assert_eq!(
     ///     Ok(60),
-    ///     ExpectI64Value::new("timeout", "t", "A timeout.")
+    ///     FlagWithValue::new("timeout", "t", "A timeout.", I64Value)
     ///         .evaluate(&["test", "-t", "60"][..])
     /// );
     /// ```
@@ -858,8 +858,8 @@ impl Flag {
         name: &'static str,
         short_code: &'static str,
         description: &'static str,
-    ) -> ExpectI64Value {
-        ExpectI64Value::new(name, short_code, description)
+    ) -> FlagWithValue<I64Value> {
+        FlagWithValue::new(name, short_code, description, I64Value)
     }
 
     /// Provides a convenient helper for generating an ExpectU8Value flag.
@@ -878,7 +878,7 @@ impl Flag {
     ///
     /// assert_eq!(
     ///     Ok(60),
-    ///     ExpectU8Value::new("timeout", "t", "A timeout.")
+    ///     FlagWithValue::new("timeout", "t", "A timeout.", U8Value)
     ///         .evaluate(&["test", "-t", "60"][..])
     /// );
     /// ```
@@ -886,8 +886,8 @@ impl Flag {
         name: &'static str,
         short_code: &'static str,
         description: &'static str,
-    ) -> ExpectU8Value {
-        ExpectU8Value::new(name, short_code, description)
+    ) -> FlagWithValue<U8Value> {
+        FlagWithValue::new(name, short_code, description, U8Value)
     }
 
     /// Provides a convenient helper for generating an ExpectU16Value flag.
@@ -906,7 +906,7 @@ impl Flag {
     ///
     /// assert_eq!(
     ///     Ok(60),
-    ///     ExpectU16Value::new("timeout", "t", "A timeout.")
+    ///     FlagWithValue::new("timeout", "t", "A timeout.", U16Value)
     ///         .evaluate(&["test", "-t", "60"][..])
     /// );
     /// ```
@@ -914,8 +914,8 @@ impl Flag {
         name: &'static str,
         short_code: &'static str,
         description: &'static str,
-    ) -> ExpectU16Value {
-        ExpectU16Value::new(name, short_code, description)
+    ) -> FlagWithValue<U16Value> {
+        FlagWithValue::new(name, short_code, description, U16Value)
     }
 
     /// Provides a convenient helper for generating an ExpectU32Value flag.
@@ -934,7 +934,7 @@ impl Flag {
     ///
     /// assert_eq!(
     ///     Ok(60),
-    ///     ExpectU32Value::new("timeout", "t", "A timeout.")
+    ///     FlagWithValue::new("timeout", "t", "A timeout.", U32Value)
     ///         .evaluate(&["test", "-t", "60"][..])
     /// );
     /// ```
@@ -942,8 +942,8 @@ impl Flag {
         name: &'static str,
         short_code: &'static str,
         description: &'static str,
-    ) -> ExpectU32Value {
-        ExpectU32Value::new(name, short_code, description)
+    ) -> FlagWithValue<U32Value> {
+        FlagWithValue::new(name, short_code, description, U32Value)
     }
 
     /// Provides a convenient helper for generating an ExpectU64Value flag.
@@ -970,8 +970,8 @@ impl Flag {
         name: &'static str,
         short_code: &'static str,
         description: &'static str,
-    ) -> ExpectU64Value {
-        ExpectU64Value::new(name, short_code, description)
+    ) -> FlagWithValue<U64Value> {
+        FlagWithValue::new(name, short_code, description, U64Value)
     }
 }
 
@@ -1144,8 +1144,8 @@ where
 /// assert_eq!(
 ///     Ok(("foo".to_string(), "info".to_string())),
 ///     Join::new(
-///         FlagWithValue::new("name", "n", "A name.", StringArgument),
-///         FlagWithValue::new("log-level", "l", "A given log level setting.", StringArgument),
+///         FlagWithValue::new("name", "n", "A name.", StringValue),
+///         FlagWithValue::new("log-level", "l", "A given log level setting.", StringValue),
 ///     )
 ///     .evaluate(&input[..])
 /// );
@@ -1156,7 +1156,7 @@ where
 ///             "log-level",
 ///             "l",
 ///             "A given log level setting.",
-///             StringArgument
+///             StringValue
 ///         ))
 ///         .evaluate(&input[..])
 /// );
@@ -1228,7 +1228,7 @@ where
     /// use scrap::prelude::v1::*;
     /// use scrap::*;
     ///
-    /// FlagWithValue::new("name", "n", "A name.", StringArgument).optional().with_default("foo".to_string());
+    /// FlagWithValue::new("name", "n", "A name.", StringValue).optional().with_default("foo".to_string());
     /// ```
     fn with_default<D>(self, default: D) -> WithDefault<D, Self> {
         WithDefault::new(default, self)
@@ -1243,7 +1243,7 @@ where
     /// use scrap::prelude::v1::*;
     /// use scrap::*;
     ///
-    /// FlagWithValue::new("name", "n", "A name.", StringArgument).optional();
+    /// FlagWithValue::new("name", "n", "A name.", StringValue).optional();
     /// ```
     fn optional(self) -> Optional<Self> {
         Optional::new(self)
@@ -1267,7 +1267,7 @@ where
 ///     Ok("foo".to_string()),
 ///     WithDefault::new(
 ///         "foo",
-///         Optional::new(FlagWithValue::new("name", "n", "A name.", StringArgument))
+///         Optional::new(FlagWithValue::new("name", "n", "A name.", StringValue))
 ///     )
 ///     .evaluate(&input[..])
 /// );
@@ -1299,7 +1299,7 @@ impl<B, E> WithDefault<B, E> {
     ///
     /// WithDefault::<String, _>::new(
     ///     "foo",
-    ///     Optional::new(FlagWithValue::new("name", "n", "A name.", StringArgument))
+    ///     Optional::new(FlagWithValue::new("name", "n", "A name.", StringValue))
     /// );
     /// ```
     pub fn new<D>(default: D, evaluator: E) -> Self
@@ -1358,13 +1358,13 @@ where
 ///
 /// assert_eq!(
 ///     Ok(Some("foo".to_string())),
-///     Optional::new(FlagWithValue::new("name", "n", "A name.", StringArgument)).evaluate(&input[..])
+///     Optional::new(FlagWithValue::new("name", "n", "A name.", StringValue)).evaluate(&input[..])
 /// );
 ///
 /// // validate boxed syntax works
 /// assert_eq!(
 ///     Ok(Some("foo".to_string())),
-///     FlagWithValue::new("name", "n", "A name.", StringArgument)
+///     FlagWithValue::new("name", "n", "A name.", StringValue)
 ///         .optional()
 ///         .evaluate(&input[..])
 /// );
@@ -1375,7 +1375,7 @@ where
 ///         "log-level",
 ///         "l",
 ///         "A given log level setting.",
-///         StringArgument
+///         StringValue
 ///     ))
 ///     .evaluate(&input[..])
 /// );
@@ -1398,7 +1398,7 @@ impl<E> Optional<E> {
     /// use scrap::prelude::v1::*;
     /// use scrap::*;
     ///
-    /// Optional::new(FlagWithValue::new("name", "n", "A name.", StringArgument));
+    /// Optional::new(FlagWithValue::new("name", "n", "A name.", StringValue));
     /// ```
     pub fn new(evaluator: E) -> Self {
         Self { evaluator }
@@ -1453,7 +1453,7 @@ where
 #[deprecated]
 #[derive(Debug)]
 pub struct ExpectStringValue {
-    inner: FlagWithValue<StringArgument>,
+    inner: FlagWithValue<StringValue>,
 }
 
 impl IsFlag for ExpectStringValue {}
@@ -1473,7 +1473,7 @@ impl ExpectStringValue {
     #[allow(dead_code)]
     pub fn new(name: &'static str, short_code: &'static str, description: &'static str) -> Self {
         Self {
-            inner: FlagWithValue::new(name, short_code, description, StringArgument),
+            inner: FlagWithValue::new(name, short_code, description, StringValue),
         }
     }
 }
@@ -1800,7 +1800,7 @@ where
 }
 
 /// ExpectFilePath represents a terminal flag type, that parses and validates a
-/// file exists in a path. Returning the file path as a Rtring.
+/// file exists in a path. Returning the file path as a String.
 ///
 /// # Example
 ///
@@ -1822,14 +1822,10 @@ where
 ///     .evaluate(&["hello"][..])
 /// );
 /// ```
+#[deprecated]
 #[derive(Debug)]
 pub struct ExpectFilePath {
-    name: &'static str,
-    short_code: &'static str,
-    description: &'static str,
-    readable: bool,
-    writable: bool,
-    exists: bool,
+    inner: FlagWithValue<FileValue>,
 }
 
 impl IsFlag for ExpectFilePath {}
@@ -1856,12 +1852,12 @@ impl ExpectFilePath {
         exists: bool,
     ) -> Self {
         Self {
-            name,
-            short_code,
-            description,
-            readable,
-            writable,
-            exists,
+            inner: FlagWithValue::new(
+                name,
+                short_code,
+                description,
+                FileValue::new(readable, writable, exists),
+            ),
         }
     }
 }
@@ -1872,33 +1868,7 @@ impl Defaultable for ExpectFilePath {}
 
 impl<'a> Evaluatable<'a, &'a [&'a str], String> for ExpectFilePath {
     fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, String> {
-        use std::fs::OpenOptions;
-
-        input[..]
-            .iter()
-            .enumerate()
-            .find(|(_, &arg)| {
-                (arg == format!("{}{}", "--", self.name))
-                    || (arg == format!("{}{}", "-", self.short_code))
-            })
-            // Only need the index.
-            .map(|(idx, _)| idx)
-            .and_then(|idx| {
-                input[..]
-                    .get(idx + 1)
-                    // check if the file exists with the corresponding flags.
-                    .and_then(|p| {
-                        OpenOptions::new()
-                            .read(self.readable)
-                            .write(self.writable)
-                            .create(!self.exists)
-                            .open(p)
-                            .ok()
-                            .map(|_| p)
-                    })
-                    .map(|&v| v.to_owned())
-            })
-            .ok_or_else(|| CliError::FlagEvaluation(self.name.to_string()))
+        self.inner.evaluate(input)
     }
 }
 
@@ -1906,12 +1876,7 @@ impl ShortHelpable for ExpectFilePath {
     type Output = FlagHelpCollector;
 
     fn short_help(&self) -> Self::Output {
-        FlagHelpCollector::Single(FlagHelpContext::new(
-            self.name,
-            self.short_code,
-            self.description,
-            Vec::new(),
-        ))
+        self.inner.short_help()
     }
 }
 
@@ -1945,7 +1910,7 @@ impl<V> FlagWithValue<V> {
     /// use scrap::prelude::v1::*;
     /// use scrap::*;
     ///
-    /// FlagWithValue::new("name", "n", "A name.", StringArgument);
+    /// FlagWithValue::new("name", "n", "A name.", StringValue);
     /// ```
     #[allow(dead_code)]
     pub fn new(
@@ -1964,6 +1929,8 @@ impl<V> FlagWithValue<V> {
 }
 
 impl<V> Defaultable for FlagWithValue<V> {}
+
+impl<V> Openable for FlagWithValue<V> where V: Openable {}
 
 impl<'a, V, B> Evaluatable<'a, &'a [&'a str], B> for FlagWithValue<V>
 where
@@ -2003,16 +1970,33 @@ pub trait PositionalArgumentValue<'a, A, B>: Evaluatable<'a, A, B> {
 }
 
 /// Represents a String argument
+///
+/// # Example
+///
+/// ```
+/// use scrap::prelude::v1::*;
+/// use scrap::*;
+///
+/// assert_eq!(
+///    Ok("foo".to_string()),
+///    FlagWithValue::new("name", "n", "A name.", StringValue).evaluate(&["hello", "--name", "foo"][..])
+/// );
+///
+/// assert_eq!(
+///     Ok("foo".to_string()),
+///     FlagWithValue::new("name", "n", "A name.", StringValue).evaluate(&["hello", "-n", "foo"][..])
+/// );
+/// ```
 #[derive(Debug, Clone, Copy)]
-pub struct StringArgument;
+pub struct StringValue;
 
-impl<'a> PositionalArgumentValue<'a, &'a [&'a str], String> for StringArgument {
+impl<'a> PositionalArgumentValue<'a, &'a [&'a str], String> for StringValue {
     fn evaluate_at(&self, input: &'a [&'a str], pos: usize) -> EvaluateResult<'a, String> {
         self.evaluate(&input[pos..])
     }
 }
 
-impl<'a> Evaluatable<'a, &'a [&'a str], String> for StringArgument {
+impl<'a> Evaluatable<'a, &'a [&'a str], String> for StringValue {
     fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, String> {
         input
             .get(0)
@@ -2021,6 +2005,35 @@ impl<'a> Evaluatable<'a, &'a [&'a str], String> for StringArgument {
     }
 }
 
+/// ValueOnMatch represents a terminal flag type, returning a given value on a match.
+///
+/// # Example
+///
+/// ```
+/// use scrap::prelude::v1::*;
+/// use scrap::*;
+///
+/// assert_eq!(
+///     Ok(false),
+///     FlagWithValue::new("no-wait", "n", "don't wait for a response.", ValueOnMatch::new(false))
+///         .evaluate(&["hello", "--no-wait"][..])
+/// );
+///
+/// assert_eq!(
+///     Ok(false),
+///     FlagWithValue::new("no-wait", "n", "don't wait for a response.", ValueOnMatch::new(false))
+///         .evaluate(&["hello", "-n"][..])
+/// );
+///
+/// assert_eq!(
+///     Ok(true),
+///     WithDefault::new(
+///         true,
+///         Optional::new(FlagWithValue::new("no-wait", "n", "don't wait for a response.", ValueOnMatch::new(false)))
+///     )
+///     .evaluate(&["hello"][..])
+/// );
+/// ```
 #[derive(Debug)]
 pub struct ValueOnMatch<V> {
     value: V,
@@ -2041,5 +2054,90 @@ impl<'a, V: Clone> PositionalArgumentValue<'a, &'a [&'a str], V> for ValueOnMatc
 impl<'a, V: Clone> Evaluatable<'a, &'a [&'a str], V> for ValueOnMatch<V> {
     fn evaluate(&self, _: &'a [&'a str]) -> EvaluateResult<'a, V> {
         Ok(self.value.clone())
+    }
+}
+
+/// FileValue represents a terminal flag type, that parses and validates a
+/// file exists in a path. Returning the file path as a String.
+///
+/// # Example
+///
+/// ```
+/// use scrap::prelude::v1::*;
+/// use scrap::*;
+///
+/// assert_eq!(
+///     Ok("/etc/hostname".to_string()),
+///     FlagWithValue::new("file", "f", "A filepath to read", FileValue::new(true, false, true))
+///         .evaluate(&["hello", "--file", "/etc/hostname"][..])
+/// );
+///
+/// assert_eq!(
+///     Ok("/etc/hostname".to_string()),
+///     WithDefault::new(
+///         "/etc/hostname".to_string(),
+///         Optional::new(FlagWithValue::new("file", "f", "A filepath to read", FileValue::new(true, false, true)))
+///     )
+///     .evaluate(&["hello"][..])
+/// );
+/// ```
+#[derive(Debug, Clone, Copy)]
+pub struct FileValue {
+    readable: bool,
+    writable: bool,
+    exists: bool,
+}
+
+impl IsFlag for FileValue {}
+
+impl FileValue {
+    /// Instantiates a new instance of FileArgumen.t
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use scrap::prelude::v1::*;
+    /// use scrap::*;
+    ///
+    /// FileValue::new(true, false, true);
+    /// ```
+    #[allow(dead_code)]
+    pub fn new(readable: bool, writable: bool, exists: bool) -> Self {
+        Self {
+            readable,
+            writable,
+            exists,
+        }
+    }
+}
+
+impl Openable for FileValue {}
+
+impl Defaultable for FileValue {}
+
+impl<'a> PositionalArgumentValue<'a, &'a [&'a str], String> for FileValue {
+    fn evaluate_at(&self, input: &'a [&'a str], pos: usize) -> EvaluateResult<'a, String> {
+        self.evaluate(&input[pos..])
+    }
+}
+
+impl<'a> Evaluatable<'a, &'a [&'a str], String> for FileValue {
+    fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, String> {
+        use std::fs::OpenOptions;
+
+        input
+            .get(0)
+            // check if the file exists with the corresponding flags.
+            .and_then(|p| {
+                OpenOptions::new()
+                    .read(self.readable)
+                    .write(self.writable)
+                    .create(!self.exists)
+                    .open(p)
+                    .ok()
+                    .map(|_| p)
+            })
+            .map(|&v| v.to_owned())
+            .ok_or(CliError::ValueEvaluation)
     }
 }

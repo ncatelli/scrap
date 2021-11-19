@@ -33,7 +33,7 @@ fn should_generate_expected_helpstring_for_given_command() {
                 .description("a test cmd")
                 .with_flag(WithDefault::<String, _>::new(
                     "foo",
-                    Optional::new(FlagWithValue::new("name", "n", "A name.", StringArgument)),
+                    Optional::new(FlagWithValue::new("name", "n", "A name.", StringValue)),
                 ),)
                 .help()
         )
@@ -45,7 +45,7 @@ fn should_generate_expected_helpstring_for_given_string_check() {
         "    --name, -n       A name.                                 ".to_string(),
         format!(
             "{}",
-            FlagWithValue::new("name", "n", "A name.", StringArgument).short_help()
+            FlagWithValue::new("name", "n", "A name.", StringValue).short_help()
         )
     )
 }
@@ -58,7 +58,7 @@ fn should_generate_expected_helpstring_for_optional_flag() {
             "log-level",
             "l",
             "A given log level setting.",
-            StringArgument
+            StringValue
         ))
         .short_help()
         .to_string()
@@ -71,7 +71,7 @@ fn should_generate_expected_helpstring_for_optional_with_default_flag() {
             "    --name, -n       A name.                                  [(optional), (default: \"foo\")]".to_string(),
             WithDefault::<String, _>::new(
                 "foo",
-                Optional::new(FlagWithValue::new("name", "n", "A name.", StringArgument))
+                Optional::new(FlagWithValue::new("name", "n", "A name.", StringValue))
             )
             .short_help()
             .to_string()
