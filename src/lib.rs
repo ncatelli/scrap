@@ -1506,6 +1506,18 @@ where
 ///     )
 ///     .evaluate(&input[..]).is_err()
 /// );
+///
+/// assert_eq!(
+///     Ok("debug".to_string()),
+///     WithDefault::new(
+///         "debug".to_string(),
+///         Optional::new(WithChoices::new(
+///             ["error".to_string()],
+///             FlagWithValue::new("log-level", "l", "logging level", StringValue)
+///         ))
+///     )
+///     .evaluate(&input[..])
+/// );
 /// ```
 #[derive(Debug)]
 pub struct WithChoices<B, E, const N: usize> {
@@ -1514,6 +1526,9 @@ pub struct WithChoices<B, E, const N: usize> {
 }
 
 impl<B, E, const N: usize> IsFlag for WithChoices<B, E, N> {}
+
+#[allow(deprecated)]
+impl<B, E, const N: usize> Defaultable for WithChoices<B, E, N> where E: Defaultable {}
 
 impl<B, E, const N: usize> WithChoices<B, E, N> {
     /// Instantiates a new choices wrapper on an evaluator.
