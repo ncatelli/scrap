@@ -77,3 +77,16 @@ fn should_generate_expected_helpstring_for_optional_with_default_flag() {
             .to_string()
         )
 }
+
+#[test]
+fn should_generate_expected_helpstring_for_with_choices_flag() {
+    assert_eq!(
+        "    --log-level, -l  A log level.                             [(choices: [\"info\", \"warn\"])]".to_string(),
+        WithChoices::new(
+            ["info".to_string(), "warn".to_string()],
+            FlagWithValue::new("log-level", "l", "A log level.", StringValue)
+        )
+        .short_help()
+        .to_string()
+    )
+}

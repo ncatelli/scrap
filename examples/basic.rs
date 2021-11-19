@@ -19,7 +19,14 @@ fn main() {
                 .optional()
                 .with_default(false),
         )
-        .with_handler(|(_, test)| {
+        .with_flag(scrap::Flag::with_choices(
+            "log-level",
+            "l",
+            "logging level.",
+            ["info".to_string(), "warn".to_string(), "error".to_string()],
+            scrap::StringValue,
+        ))
+        .with_handler(|((_, test), _)| {
             if test {
                 Ok(())
             } else {
@@ -28,17 +35,17 @@ fn main() {
         });
 
     let help_string = cmd.help();
-    let eval_res = cmd
-        .evaluate(&args[..])
-        .map_err(|e| e.to_string())
-        .and_then(|(help, test)| {
-            if help {
-                println!("{}", &help_string);
-                Ok(())
-            } else {
-                cmd.dispatch((help, test))
-            }
-        });
+    let eval_res =
+        cmd.evaluate(&args[..])
+            .map_err(|e| e.to_string())
+            .and_then(|((help, test), log_level)| {
+                if help {
+                    println!("{}", &help_string);
+                    Ok(())
+                } else {
+                    cmd.dispatch(((help, test), log_level))
+                }
+            });
 
     match eval_res {
         Ok(_) => println!("Test is true"),

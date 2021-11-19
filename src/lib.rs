@@ -973,6 +973,41 @@ impl Flag {
     ) -> FlagWithValue<U64Value> {
         FlagWithValue::new(name, short_code, description, U64Value)
     }
+
+    /// Provides a convenient wrapper for generating `WithChoices` flags.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use scrap::prelude::v1::*;
+    /// use scrap::*;
+    ///
+    /// assert_eq!(
+    ///     Ok("info".to_string()),
+    ///     Flag::with_choices("log-level", "l", "A log level.", ["info".to_string(), "warn".to_string()], StringValue)
+    ///         .evaluate(&["hello", "-l", "info"][..])
+    /// );
+    ///
+    /// assert_eq!(
+    ///     Ok("info".to_string()),
+    ///     WithChoices::new(
+    ///         ["info".to_string(), "warn".to_string()],
+    ///         FlagWithValue::new("log-level", "l", "A log level.", StringValue)
+    ///     ).evaluate(&["hello", "-l", "info"][..])
+    /// );
+    /// ```
+    pub fn with_choices<B, E, const N: usize>(
+        name: &'static str,
+        short_code: &'static str,
+        description: &'static str,
+        choices: [B; N],
+        evaluator: E,
+    ) -> WithChoices<B, FlagWithValue<E>, N> {
+        WithChoices::new(
+            choices,
+            FlagWithValue::new(name, short_code, description, evaluator),
+        )
+    }
 }
 
 /// FlagHelpCollector provides a helper enum for collecting flag help strings
@@ -1425,6 +1460,108 @@ where
         match self.evaluator.short_help() {
             FlagHelpCollector::Single(fhc) => {
                 FlagHelpCollector::Single(fhc.with_modifier("optional".to_string()))
+            }
+            // this case should never be hit as joined is not defaultable
+            fhcj @ FlagHelpCollector::Joined(_, _) => fhcj,
+        }
+    }
+}
+
+/// WithChoices takes an evaluator E and a default value B that agrees with the
+/// return type of the Evaluator. This default is meant to wrap the enclosed
+/// evaluator, returning the A success with the default value for any
+/// evaluation that fails.
+///
+/// # Example
+///
+/// ```
+/// use scrap::prelude::v1::*;
+/// use scrap::*;
+///
+/// let input = ["hello", "--log-level", "info"];
+///
+/// assert_eq!(
+///     Ok("info".to_string()),
+///     Flag::with_choices(
+///         "log-level", "l", "logging level",
+///         ["info".to_string(), "warn".to_string()],
+///         StringValue
+///     )
+///     .evaluate(&input[..])
+/// );
+///
+/// assert_eq!(
+///     Ok("info".to_string()),
+///     WithChoices::new(
+///         ["info".to_string(), "warn".to_string()],
+///         FlagWithValue::new("log-level", "l", "logging level", StringValue)
+///     )
+///     .evaluate(&input[..])
+/// );
+///
+/// assert!(
+///     WithChoices::new(
+///         ["error".to_string()],
+///         FlagWithValue::new("log-level", "l", "logging level", StringValue)
+///     )
+///     .evaluate(&input[..]).is_err()
+/// );
+/// ```
+#[derive(Debug)]
+pub struct WithChoices<B, E, const N: usize> {
+    choices: [B; N],
+    evaluator: E,
+}
+
+impl<B, E, const N: usize> IsFlag for WithChoices<B, E, N> {}
+
+impl<B, E, const N: usize> WithChoices<B, E, N> {
+    /// Instantiates a new choices wrapper on an evaluator.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use scrap::prelude::v1::*;
+    /// use scrap::*;
+    ///
+    /// WithChoices::new(
+    ///     ["foo".to_string(), "bar".to_string()],
+    ///     Optional::new(FlagWithValue::new("name", "n", "A name.", StringValue))
+    /// );
+    /// ```
+    pub fn new(choices: [B; N], evaluator: E) -> Self {
+        Self { choices, evaluator }
+    }
+}
+
+impl<'a, E, A, B, const N: usize> Evaluatable<'a, A, B> for WithChoices<B, E, N>
+where
+    A: 'a,
+    B: Clone + PartialEq,
+    E: Evaluatable<'a, A, B>,
+{
+    fn evaluate(&self, input: A) -> EvaluateResult<'a, B> {
+        self.evaluator.evaluate(input).and_then(|op| {
+            self.choices
+                .iter()
+                .any(|choice| choice == &op)
+                .then(|| op)
+                .ok_or(CliError::ValueEvaluation)
+        })
+    }
+}
+
+impl<B, E, const N: usize> ShortHelpable for WithChoices<B, E, N>
+where
+    B: Clone + std::fmt::Debug,
+    E: ShortHelpable<Output = FlagHelpCollector> + Defaultable,
+{
+    type Output = FlagHelpCollector;
+
+    fn short_help(&self) -> Self::Output {
+        match self.evaluator.short_help() {
+            FlagHelpCollector::Single(fhc) => {
+                FlagHelpCollector::Single(fhc.with_modifier(format!("choices: {:?}", self.choices)))
             }
             // this case should never be hit as joined is not defaultable
             fhcj @ FlagHelpCollector::Joined(_, _) => fhcj,
@@ -2005,54 +2142,6 @@ impl<'a> Evaluatable<'a, &'a [&'a str], String> for StringValue {
     }
 }
 
-/// Represents an explicit static value in string format.
-///
-/// # Example
-///
-/// ```
-/// use scrap::prelude::v1::*;
-/// use scrap::*;
-///
-/// assert_eq!(
-///    Ok("foo".to_string()),
-///    FlagWithValue::new("name", "n", "A name.", ExplicitValue::new("foo", "foo".to_string())).evaluate(&["hello", "--name", "foo"][..])
-/// );
-///
-/// assert_eq!(
-///     Ok("foo".to_string()),
-///     FlagWithValue::new("name", "n", "A name.", ExplicitValue::new("foo", "foo".to_string())).evaluate(&["hello", "-n", "foo"][..])
-/// );
-/// ```
-#[derive(Debug)]
-pub struct ExplicitValue<V> {
-    matcher: &'static str,
-    value: ValueOnMatch<V>,
-}
-
-impl<V> ExplicitValue<V> {
-    pub fn new(matcher: &'static str, value: V) -> Self {
-        Self {
-            matcher,
-            value: ValueOnMatch::new(value),
-        }
-    }
-}
-
-impl<'a, V: Clone> PositionalArgumentValue<'a, &'a [&'a str], V> for ExplicitValue<V> {
-    fn evaluate_at(&self, input: &'a [&'a str], pos: usize) -> EvaluateResult<'a, V> {
-        self.evaluate(&input[pos..])
-    }
-}
-
-impl<'a, V: Clone> Evaluatable<'a, &'a [&'a str], V> for ExplicitValue<V> {
-    fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, V> {
-        input
-            .get(0)
-            .and_then(|v| (v == &self.matcher).then(|| self.value.value.clone()))
-            .ok_or(CliError::ValueEvaluation)
-    }
-}
-
 /// ValueOnMatch represents a terminal flag type, returning a given value on a match.
 ///
 /// # Example
@@ -2186,67 +2275,6 @@ impl<'a> Evaluatable<'a, &'a [&'a str], String> for FileValue {
                     .map(|_| p)
             })
             .map(|&v| v.to_owned())
-            .ok_or(CliError::ValueEvaluation)
-    }
-}
-
-/// Represents a String argument
-///
-/// # Example
-///
-/// ```
-/// use scrap::prelude::v1::*;
-/// use scrap::*;
-///
-/// assert_eq!(
-///     Ok("east".to_string()),
-///     FlagWithValue::new("direction", "-d", "A direction.", ChoiceValue::new([
-///         ExplicitValue::new("north", "north".to_string()),
-///         ExplicitValue::new("south", "south".to_string()),
-///         ExplicitValue::new("east", "east".to_string()),
-///         ExplicitValue::new("west", "west".to_string()),
-///     ])).evaluate(&["hello", "--direction", "east"][..])
-/// );
-///
-/// assert_eq!(
-///     Ok("north".to_string()),
-///     FlagWithValue::new("direction", "d", "A direction.", ChoiceValue::new([
-///         ExplicitValue::new("north", "north".to_string()),
-///         ExplicitValue::new("south", "south".to_string()),
-///         ExplicitValue::new("east", "east".to_string()),
-///         ExplicitValue::new("west", "west".to_string()),
-///     ])).evaluate(&["hello", "-d", "north"][..])
-/// );
-/// ```
-#[derive(Debug)]
-pub struct ChoiceValue<V, const N: usize> {
-    choices: [V; N],
-}
-
-impl<V, const N: usize> ChoiceValue<V, N> {
-    pub fn new(choices: [V; N]) -> Self {
-        Self { choices }
-    }
-}
-
-impl<'a, V, B, const N: usize> PositionalArgumentValue<'a, &'a [&'a str], B> for ChoiceValue<V, N>
-where
-    V: PositionalArgumentValue<'a, &'a [&'a str], B>,
-{
-    fn evaluate_at(&self, input: &'a [&'a str], pos: usize) -> EvaluateResult<'a, B> {
-        self.evaluate(&input[pos..])
-    }
-}
-
-impl<'a, V, B, const N: usize> Evaluatable<'a, &'a [&'a str], B> for ChoiceValue<V, N>
-where
-    V: PositionalArgumentValue<'a, &'a [&'a str], B>,
-{
-    fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, B> {
-        self.choices
-            .iter()
-            .filter_map(|v| v.evaluate_at(input, 0).ok())
-            .next()
             .ok_or(CliError::ValueEvaluation)
     }
 }
