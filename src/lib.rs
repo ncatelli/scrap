@@ -1450,6 +1450,7 @@ where
 ///     ExpectStringValue::new("name", "n", "A name.").evaluate(&["hello", "-n", "foo"][..])
 /// );
 /// ```
+#[deprecated]
 #[derive(Debug)]
 pub struct ExpectStringValue {
     inner: FlagWithValue<StringArgument>,
@@ -1520,6 +1521,7 @@ impl ShortHelpable for ExpectStringValue {
 ///     .evaluate(&["hello"][..])
 /// );
 /// ```
+#[deprecated]
 #[derive(Debug)]
 pub struct StoreTrue {
     inner: FlagWithValue<ValueOnMatch<bool>>,
@@ -1589,6 +1591,7 @@ impl ShortHelpable for StoreTrue {
 ///     .evaluate(&["hello"][..])
 /// );
 /// ```
+#[deprecated]
 #[derive(Debug)]
 pub struct StoreFalse {
     inner: FlagWithValue<ValueOnMatch<bool>>,
@@ -1634,13 +1637,12 @@ impl ShortHelpable for StoreFalse {
 // Integer types
 
 macro_rules! generate_integer_evaluators {
-    ($($name:tt, $primitive:ty,)*) => {
+    ($($name:tt, $value_name:tt, $primitive:ty,)*) => {
         $(
+        #[deprecated]
         #[derive(Debug)]
         pub struct $name {
-            name: &'static str,
-            short_code: &'static str,
-            description: &'static str,
+            inner: FlagWithValue<$value_name>,
         }
 
         impl IsFlag for $name {}
@@ -1654,26 +1656,14 @@ macro_rules! generate_integer_evaluators {
                 description: &'static str,
             ) -> Self {
                 Self {
-                    name,
-                    short_code,
-                    description,
+                    inner:FlagWithValue::new(name, short_code, description, $value_name),
                 }
             }
         }
 
         impl<'a> Evaluatable<'a, &'a [&'a str], $primitive> for $name {
             fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, $primitive> {
-                input[..]
-                    .iter()
-                    .enumerate()
-                    .find(|(_, &arg)| {
-                        (arg == format!("{}{}", "--", self.name))
-                            || (arg == format!("{}{}", "-", self.short_code))
-                    })
-                    // Only need the index.
-                    .map(|(idx, _)| idx)
-                    .and_then(|idx| input[..].get(idx + 1).and_then(|&v| v.parse::<$primitive>().ok()))
-                    .ok_or_else(|| CliError::FlagEvaluation(self.name.to_string()))
+                self.inner.evaluate(input)
             }
         }
 
@@ -1681,12 +1671,26 @@ macro_rules! generate_integer_evaluators {
             type Output = FlagHelpCollector;
 
             fn short_help(&self) -> Self::Output {
-                FlagHelpCollector::Single(FlagHelpContext::new(
-                    self.name,
-                    self.short_code,
-                    self.description,
-                    Vec::new(),
-                ))
+                self.inner.short_help()
+            }
+        }
+
+        /// Represents a String argument
+        #[derive(Debug, Clone, Copy)]
+        pub struct $value_name;
+
+        impl<'a> PositionalArgumentValue<'a, &'a [&'a str], $primitive> for $value_name {
+            fn evaluate_at(&self, input: &'a [&'a str], pos: usize) -> EvaluateResult<'a, $primitive> {
+                self.evaluate(&input[pos..])
+            }
+        }
+
+        impl<'a> Evaluatable<'a, &'a [&'a str], $primitive> for $value_name {
+            fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, $primitive> {
+                input
+                    .get(0)
+                    .and_then(|&v| v.parse::<$primitive>().ok())
+                    .ok_or(CliError::ValueEvaluation)
             }
         }
     )*
@@ -1695,14 +1699,14 @@ macro_rules! generate_integer_evaluators {
 
 #[rustfmt::skip]
 generate_integer_evaluators!(
-    ExpectI8Value, i8,
-    ExpectI16Value, i16,
-    ExpectI32Value, i32,
-    ExpectI64Value, i64,
-    ExpectU8Value, u8,
-    ExpectU16Value, u16,
-    ExpectU32Value, u32,
-    ExpectU64Value, u64,
+    ExpectI8Value, I8Value, i8,
+    ExpectI16Value, I16Value, i16,
+    ExpectI32Value, I32Value, i32,
+    ExpectI64Value, I64Value, i64,
+    ExpectU8Value, U8Value, u8,
+    ExpectU16Value, U16Value, u16,
+    ExpectU32Value, U32Value, u32,
+    ExpectU64Value, U64Value, u64,
 );
 
 /// Defines a marker trait for types that can be opened via the WithOpen
