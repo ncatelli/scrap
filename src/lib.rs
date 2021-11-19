@@ -1593,8 +1593,10 @@ pub struct ExpectStringValue {
     inner: FlagWithValue<StringValue>,
 }
 
+#[allow(deprecated)]
 impl IsFlag for ExpectStringValue {}
 
+#[allow(deprecated)]
 impl ExpectStringValue {
     /// Instantiates a new instance of ExpectStringValue with a given flag name,
     /// shortcode and description.
@@ -1615,14 +1617,17 @@ impl ExpectStringValue {
     }
 }
 
+#[allow(deprecated)]
 impl Defaultable for ExpectStringValue {}
 
+#[allow(deprecated)]
 impl<'a> Evaluatable<'a, &'a [&'a str], String> for ExpectStringValue {
     fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, String> {
         self.inner.evaluate(input)
     }
 }
 
+#[allow(deprecated)]
 impl ShortHelpable for ExpectStringValue {
     type Output = FlagHelpCollector;
 
@@ -1664,9 +1669,13 @@ pub struct StoreTrue {
     inner: FlagWithValue<ValueOnMatch<bool>>,
 }
 
+#[allow(deprecated)]
 impl IsFlag for StoreTrue {}
+
+#[allow(deprecated)]
 impl Defaultable for StoreTrue {}
 
+#[allow(deprecated)]
 impl StoreTrue {
     /// Instantiates a new instance of StoreTrue with a given flag name,
     /// shortcode and description.
@@ -1687,12 +1696,14 @@ impl StoreTrue {
     }
 }
 
+#[allow(deprecated)]
 impl<'a> Evaluatable<'a, &'a [&'a str], bool> for StoreTrue {
     fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, bool> {
         self.inner.evaluate(input)
     }
 }
 
+#[allow(deprecated)]
 impl ShortHelpable for StoreTrue {
     type Output = FlagHelpCollector;
 
@@ -1734,9 +1745,13 @@ pub struct StoreFalse {
     inner: FlagWithValue<ValueOnMatch<bool>>,
 }
 
+#[allow(deprecated)]
 impl IsFlag for StoreFalse {}
+
+#[allow(deprecated)]
 impl Defaultable for StoreFalse {}
 
+#[allow(deprecated)]
 impl StoreFalse {
     /// Instantiates a new instance of StoreFalse with a given flag name,
     /// shortcode and description.
@@ -1757,12 +1772,14 @@ impl StoreFalse {
     }
 }
 
+#[allow(deprecated)]
 impl<'a> Evaluatable<'a, &'a [&'a str], bool> for StoreFalse {
     fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, bool> {
         self.inner.evaluate(input)
     }
 }
 
+#[allow(deprecated)]
 impl ShortHelpable for StoreFalse {
     type Output = FlagHelpCollector;
 
@@ -1782,9 +1799,13 @@ macro_rules! generate_integer_evaluators {
             inner: FlagWithValue<$value_name>,
         }
 
+        #[allow(deprecated)]
         impl IsFlag for $name {}
+
+        #[allow(deprecated)]
         impl Defaultable for $name {}
 
+        #[allow(deprecated)]
         impl $name {
             #[allow(dead_code)]
             pub fn new(
@@ -1798,12 +1819,14 @@ macro_rules! generate_integer_evaluators {
             }
         }
 
+        #[allow(deprecated)]
         impl<'a> Evaluatable<'a, &'a [&'a str], $primitive> for $name {
             fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, $primitive> {
                 self.inner.evaluate(input)
             }
         }
 
+        #[allow(deprecated)]
         impl ShortHelpable for $name {
             type Output = FlagHelpCollector;
 
@@ -1965,8 +1988,10 @@ pub struct ExpectFilePath {
     inner: FlagWithValue<FileValue>,
 }
 
+#[allow(deprecated)]
 impl IsFlag for ExpectFilePath {}
 
+#[allow(deprecated)]
 impl ExpectFilePath {
     /// Instantiates a new instance of ExpectFilePath with a given flag name,
     /// shortcode and description.
@@ -1999,16 +2024,20 @@ impl ExpectFilePath {
     }
 }
 
+#[allow(deprecated)]
 impl Openable for ExpectFilePath {}
 
+#[allow(deprecated)]
 impl Defaultable for ExpectFilePath {}
 
+#[allow(deprecated)]
 impl<'a> Evaluatable<'a, &'a [&'a str], String> for ExpectFilePath {
     fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, String> {
         self.inner.evaluate(input)
     }
 }
 
+#[allow(deprecated)]
 impl ShortHelpable for ExpectFilePath {
     type Output = FlagHelpCollector;
 
