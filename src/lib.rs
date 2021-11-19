@@ -2200,7 +2200,7 @@ impl<'a> Evaluatable<'a, &'a [&'a str], String> for FileValue {
 ///
 /// assert_eq!(
 ///     Ok("east".to_string()),
-///     FlagWithValue::new("direction", "-d", "A direction.", ChoiceValue::new(vec![
+///     FlagWithValue::new("direction", "-d", "A direction.", ChoiceValue::new([
 ///         ExplicitValue::new("north", "north".to_string()),
 ///         ExplicitValue::new("south", "south".to_string()),
 ///         ExplicitValue::new("east", "east".to_string()),
@@ -2210,7 +2210,7 @@ impl<'a> Evaluatable<'a, &'a [&'a str], String> for FileValue {
 ///
 /// assert_eq!(
 ///     Ok("north".to_string()),
-///     FlagWithValue::new("direction", "d", "A direction.", ChoiceValue::new(vec![
+///     FlagWithValue::new("direction", "d", "A direction.", ChoiceValue::new([
 ///         ExplicitValue::new("north", "north".to_string()),
 ///         ExplicitValue::new("south", "south".to_string()),
 ///         ExplicitValue::new("east", "east".to_string()),
@@ -2219,17 +2219,17 @@ impl<'a> Evaluatable<'a, &'a [&'a str], String> for FileValue {
 /// );
 /// ```
 #[derive(Debug)]
-pub struct ChoiceValue<V> {
-    choices: Vec<V>,
+pub struct ChoiceValue<V, const N: usize> {
+    choices: [V; N],
 }
 
-impl<V> ChoiceValue<V> {
-    pub fn new(choices: Vec<V>) -> Self {
+impl<V, const N: usize> ChoiceValue<V, N> {
+    pub fn new(choices: [V; N]) -> Self {
         Self { choices }
     }
 }
 
-impl<'a, V, B> PositionalArgumentValue<'a, &'a [&'a str], B> for ChoiceValue<V>
+impl<'a, V, B, const N: usize> PositionalArgumentValue<'a, &'a [&'a str], B> for ChoiceValue<V, N>
 where
     V: PositionalArgumentValue<'a, &'a [&'a str], B>,
 {
@@ -2238,7 +2238,7 @@ where
     }
 }
 
-impl<'a, V, B> Evaluatable<'a, &'a [&'a str], B> for ChoiceValue<V>
+impl<'a, V, B, const N: usize> Evaluatable<'a, &'a [&'a str], B> for ChoiceValue<V, N>
 where
     V: PositionalArgumentValue<'a, &'a [&'a str], B>,
 {
