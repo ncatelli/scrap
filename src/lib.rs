@@ -2005,6 +2005,54 @@ impl<'a> Evaluatable<'a, &'a [&'a str], String> for StringValue {
     }
 }
 
+/// Represents an explicit static value in string format.
+///
+/// # Example
+///
+/// ```
+/// use scrap::prelude::v1::*;
+/// use scrap::*;
+///
+/// assert_eq!(
+///    Ok("foo".to_string()),
+///    FlagWithValue::new("name", "n", "A name.", ExplicitValue::new("foo", "foo".to_string())).evaluate(&["hello", "--name", "foo"][..])
+/// );
+///
+/// assert_eq!(
+///     Ok("foo".to_string()),
+///     FlagWithValue::new("name", "n", "A name.", ExplicitValue::new("foo", "foo".to_string())).evaluate(&["hello", "-n", "foo"][..])
+/// );
+/// ```
+#[derive(Debug)]
+pub struct ExplicitValue<V> {
+    matcher: &'static str,
+    value: ValueOnMatch<V>,
+}
+
+impl<V> ExplicitValue<V> {
+    pub fn new(matcher: &'static str, value: V) -> Self {
+        Self {
+            matcher,
+            value: ValueOnMatch::new(value),
+        }
+    }
+}
+
+impl<'a, V: Clone> PositionalArgumentValue<'a, &'a [&'a str], V> for ExplicitValue<V> {
+    fn evaluate_at(&self, input: &'a [&'a str], pos: usize) -> EvaluateResult<'a, V> {
+        self.evaluate(&input[pos..])
+    }
+}
+
+impl<'a, V: Clone> Evaluatable<'a, &'a [&'a str], V> for ExplicitValue<V> {
+    fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, V> {
+        input
+            .get(0)
+            .and_then(|v| (v == &self.matcher).then(|| self.value.value.clone()))
+            .ok_or(CliError::ValueEvaluation)
+    }
+}
+
 /// ValueOnMatch represents a terminal flag type, returning a given value on a match.
 ///
 /// # Example
@@ -2138,6 +2186,67 @@ impl<'a> Evaluatable<'a, &'a [&'a str], String> for FileValue {
                     .map(|_| p)
             })
             .map(|&v| v.to_owned())
+            .ok_or(CliError::ValueEvaluation)
+    }
+}
+
+/// Represents a String argument
+///
+/// # Example
+///
+/// ```
+/// use scrap::prelude::v1::*;
+/// use scrap::*;
+///
+/// assert_eq!(
+///     Ok("east".to_string()),
+///     FlagWithValue::new("direction", "-d", "A direction.", ChoiceValue::new(vec![
+///         ExplicitValue::new("north", "north".to_string()),
+///         ExplicitValue::new("south", "south".to_string()),
+///         ExplicitValue::new("east", "east".to_string()),
+///         ExplicitValue::new("west", "west".to_string()),
+///     ])).evaluate(&["hello", "--direction", "east"][..])
+/// );
+///
+/// assert_eq!(
+///     Ok("north".to_string()),
+///     FlagWithValue::new("direction", "d", "A direction.", ChoiceValue::new(vec![
+///         ExplicitValue::new("north", "north".to_string()),
+///         ExplicitValue::new("south", "south".to_string()),
+///         ExplicitValue::new("east", "east".to_string()),
+///         ExplicitValue::new("west", "west".to_string()),
+///     ])).evaluate(&["hello", "-d", "north"][..])
+/// );
+/// ```
+#[derive(Debug)]
+pub struct ChoiceValue<V> {
+    choices: Vec<V>,
+}
+
+impl<V> ChoiceValue<V> {
+    pub fn new(choices: Vec<V>) -> Self {
+        Self { choices }
+    }
+}
+
+impl<'a, V, B> PositionalArgumentValue<'a, &'a [&'a str], B> for ChoiceValue<V>
+where
+    V: PositionalArgumentValue<'a, &'a [&'a str], B>,
+{
+    fn evaluate_at(&self, input: &'a [&'a str], pos: usize) -> EvaluateResult<'a, B> {
+        self.evaluate(&input[pos..])
+    }
+}
+
+impl<'a, V, B> Evaluatable<'a, &'a [&'a str], B> for ChoiceValue<V>
+where
+    V: PositionalArgumentValue<'a, &'a [&'a str], B>,
+{
+    fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, B> {
+        self.choices
+            .iter()
+            .filter_map(|v| v.evaluate_at(input, 0).ok())
+            .next()
             .ok_or(CliError::ValueEvaluation)
     }
 }
