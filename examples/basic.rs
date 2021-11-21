@@ -28,7 +28,7 @@ fn main() {
     );
 
     // `Cmd` defines the named command, combining metadata without our above defined command.
-    let cmd = scrap::Cmd::new("minimal")
+    let cmd = scrap::Cmd::new("basic")
         .description("A minimal example cli.")
         .author("John Doe <jdoe@example.com>")
         .version("1.2.3")
