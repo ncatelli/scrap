@@ -25,40 +25,31 @@ fn main() {
             "west".to_string(),
         ],
         scrap::StringValue,
-    );
+    )
+    .optional();
 
     // `Cmd` defines the named command, combining metadata without our above defined command.
-    let cmd = scrap::Cmd::new("basic")
+    let cmd = scrap::Cmd::new("dispatch_with_helpstring")
         .description("A minimal example cli.")
         .author("John Doe <jdoe@example.com>")
         .version("1.2.3")
         .with_flag(help)
         .with_flag(direction)
         // Finally a handler is defined with its signature being a product of
-        // the cli's defined flags.
-        .with_handler(|(_, direction)| println!("You chose {}.", direction));
-
-    // The help method generates a help command based on the output rendered
-    // from all defined flags.
-    let help_string = cmd.help();
+        // the cli's helpstring and defined flags.
+        .with_helpstring_handler(|help_string, (help_flag_set, optional_direction)| {
+            match (help_flag_set, optional_direction) {
+                (false, Some(direction)) => println!("You chose {}.", direction),
+                _ => println!("{}", help_string),
+            }
+        });
 
     // Evaluate attempts to parse the input, evaluating all commands and flags
     // into concrete types which can be passed to `dispatch`, the defined
     // handler.
-    let res = cmd
+    let _ = cmd
         .evaluate(&args[..])
         .map_err(|e| e.to_string())
-        .and_then(|(help, direction)| {
-            if help {
-                Err("output help".to_string())
-            } else {
-                cmd.dispatch((help, direction));
-                Ok(())
-            }
-        });
-
-    match res {
-        Ok(_) => (),
-        Err(_) => println!("{}", help_string),
-    }
+        .map(|(help, direction)| cmd.dispatch_with_helpstring((help, direction)))
+        .map_err(|e| println!("{}", e));
 }

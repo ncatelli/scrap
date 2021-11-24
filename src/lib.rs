@@ -300,10 +300,10 @@ where
     }
 }
 
-impl<'a, C, A, B, R> DispatchableWithHelpString<A, B, R> for CmdGroup<C>
+impl<'a, C, B, R> DispatchableWithHelpString<B, R> for CmdGroup<C>
 where
     Self: Helpable<Output = String>,
-    C: Evaluatable<'a, A, B> + DispatchableWithHelpString<A, B, R>,
+    C: DispatchableWithHelpString<B, R>,
 {
     fn dispatch_with_helpstring(self, flag_values: B) -> R {
         let help_string = self.help();
@@ -429,11 +429,11 @@ where
     }
 }
 
-impl<'a, C1, C2, A, B, C, R> DispatchableWithHelpString<A, Either<B, C>, R> for OneOf<C1, C2>
+impl<'a, C1, C2, B, C, R> DispatchableWithHelpString<Either<B, C>, R> for OneOf<C1, C2>
 where
     Self: Helpable<Output = String>,
-    C1: Evaluatable<'a, A, B> + DispatchableWithHelpString<A, B, R>,
-    C2: Evaluatable<'a, A, C> + DispatchableWithHelpString<A, C, R>,
+    C1: DispatchableWithHelpString<B, R>,
+    C2: DispatchableWithHelpString<C, R>,
 {
     fn dispatch_with_helpstring(self, flag_values: Either<B, C>) -> R {
         let help_string = self.help();
@@ -629,7 +629,8 @@ impl<T, H> Cmd<T, H> {
         self
     }
 
-    /// Returns Cmd with the handler set to the provided function.
+    /// Returns Cmd with the handler set to the provided function in the format
+    /// of (evaluator returns).
     ///
     /// # Examples
     ///
@@ -643,6 +644,32 @@ impl<T, H> Cmd<T, H> {
     where
         T: Evaluatable<'a, A, B>,
         NH: Fn(B) -> R,
+    {
+        Cmd {
+            name: self.name,
+            description: self.description,
+            author: self.author,
+            version: self.version,
+            flags: self.flags,
+            handler,
+        }
+    }
+
+    /// Returns Cmd with the handler set to the provided function in the format
+    /// of (helpstring, evaluator returns).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use scrap::prelude::v1::*;
+    /// use scrap::*;
+    ///
+    /// Cmd::new("test").with_helpstring_handler(|_, _| ());
+    /// ```
+    pub fn with_helpstring_handler<'a, A, B, NH, R>(self, handler: NH) -> Cmd<T, NH>
+    where
+        T: Evaluatable<'a, A, B>,
+        NH: Fn(String, B) -> R,
     {
         Cmd {
             name: self.name,
@@ -745,7 +772,7 @@ where
     }
 }
 
-impl<'a, T, H, A, B, R> DispatchableWithHelpString<A, B, R> for Cmd<T, H>
+impl<'a, T, H, B, R> DispatchableWithHelpString<B, R> for Cmd<T, H>
 where
     Self: Helpable<Output = String>,
     H: Fn(String, B) -> R,
@@ -767,7 +794,7 @@ pub trait Dispatchable<A, B, R> {
 
 /// Defines behaviors for types that can dispatch an evaluator to a function
 /// with additional help documentation.
-pub trait DispatchableWithHelpString<A, B, R> {
+pub trait DispatchableWithHelpString<B, R> {
     fn dispatch_with_helpstring(self, flag_values: B) -> R;
     fn dispatch_with_supplied_helpstring(self, help_string: String, flag_values: B) -> R;
 }
