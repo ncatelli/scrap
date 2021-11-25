@@ -4,6 +4,10 @@ pub use crate::Defaultable;
 /// Defines behaviors for types that can dispatch an evaluator to a function.
 pub use crate::Dispatchable;
 
+/// Defines behaviors for types that can dispatch an evaluator to a function
+/// with additional help documentation.
+pub use crate::DispatchableWithHelpString;
+
 /// Defines behaviors for evaluating an input to a given type.
 pub use crate::Evaluatable;
 

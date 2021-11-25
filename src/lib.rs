@@ -300,6 +300,23 @@ where
     }
 }
 
+impl<'a, C, B, R> DispatchableWithHelpString<B, R> for CmdGroup<C>
+where
+    Self: Helpable<Output = String>,
+    C: DispatchableWithHelpString<B, R>,
+{
+    fn dispatch_with_helpstring(self, flag_values: B) -> R {
+        let help_string = self.help();
+        self.commands
+            .dispatch_with_supplied_helpstring(help_string, flag_values)
+    }
+
+    fn dispatch_with_supplied_helpstring(self, help_string: String, flag_values: B) -> R {
+        self.commands
+            .dispatch_with_supplied_helpstring(help_string, flag_values)
+    }
+}
+
 impl<C> Helpable for CmdGroup<C>
 where
     C: ShortHelpable<Output = String>,
@@ -408,6 +425,32 @@ where
         match flag_values {
             Either::Left(b) => self.left.dispatch(b),
             Either::Right(c) => self.right.dispatch(c),
+        }
+    }
+}
+
+impl<'a, C1, C2, B, C, R> DispatchableWithHelpString<Either<B, C>, R> for OneOf<C1, C2>
+where
+    Self: Helpable<Output = String>,
+    C1: DispatchableWithHelpString<B, R>,
+    C2: DispatchableWithHelpString<C, R>,
+{
+    fn dispatch_with_helpstring(self, flag_values: Either<B, C>) -> R {
+        let help_string = self.help();
+        match flag_values {
+            Either::Left(b) => self.left.dispatch_with_supplied_helpstring(help_string, b),
+            Either::Right(c) => self.right.dispatch_with_supplied_helpstring(help_string, c),
+        }
+    }
+
+    fn dispatch_with_supplied_helpstring(
+        self,
+        help_string: String,
+        flag_values: Either<B, C>,
+    ) -> R {
+        match flag_values {
+            Either::Left(b) => self.left.dispatch_with_supplied_helpstring(help_string, b),
+            Either::Right(c) => self.right.dispatch_with_supplied_helpstring(help_string, c),
         }
     }
 }
@@ -586,7 +629,8 @@ impl<T, H> Cmd<T, H> {
         self
     }
 
-    /// Returns Cmd with the handler set to the provided function.
+    /// Returns Cmd with the handler set to the provided function in the format
+    /// of (evaluator returns).
     ///
     /// # Examples
     ///
@@ -600,6 +644,32 @@ impl<T, H> Cmd<T, H> {
     where
         T: Evaluatable<'a, A, B>,
         NH: Fn(B) -> R,
+    {
+        Cmd {
+            name: self.name,
+            description: self.description,
+            author: self.author,
+            version: self.version,
+            flags: self.flags,
+            handler,
+        }
+    }
+
+    /// Returns Cmd with the handler set to the provided function in the format
+    /// of (helpstring, evaluator returns).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use scrap::prelude::v1::*;
+    /// use scrap::*;
+    ///
+    /// Cmd::new("test").with_helpstring_handler(|_, _| ());
+    /// ```
+    pub fn with_helpstring_handler<'a, A, B, NH, R>(self, handler: NH) -> Cmd<T, NH>
+    where
+        T: Evaluatable<'a, A, B>,
+        NH: Fn(String, B) -> R,
     {
         Cmd {
             name: self.name,
@@ -702,8 +772,31 @@ where
     }
 }
 
+impl<'a, T, H, B, R> DispatchableWithHelpString<B, R> for Cmd<T, H>
+where
+    Self: Helpable<Output = String>,
+    H: Fn(String, B) -> R,
+{
+    fn dispatch_with_helpstring(self, flag_values: B) -> R {
+        let help_string = self.help();
+        (self.handler)(help_string, flag_values)
+    }
+
+    fn dispatch_with_supplied_helpstring(self, help_string: String, flag_values: B) -> R {
+        (self.handler)(help_string, flag_values)
+    }
+}
+
+/// Defines behaviors for types that can dispatch an evaluator to a function.
 pub trait Dispatchable<A, B, R> {
     fn dispatch(self, flag_values: B) -> R;
+}
+
+/// Defines behaviors for types that can dispatch an evaluator to a function
+/// with additional help documentation.
+pub trait DispatchableWithHelpString<B, R> {
+    fn dispatch_with_helpstring(self, flag_values: B) -> R;
+    fn dispatch_with_supplied_helpstring(self, help_string: String, flag_values: B) -> R;
 }
 
 /// Much like Helpable, ShortHelpable is for defining the functionality to
