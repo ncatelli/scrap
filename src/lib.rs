@@ -757,7 +757,7 @@ where
             "Usage: {} [OPTIONS]\n{}\nFlags:\n{}",
             self.name,
             self.description,
-            self.flags.short_help().to_string()
+            self.flags.short_help()
         )
     }
 }
