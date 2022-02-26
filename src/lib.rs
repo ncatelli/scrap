@@ -1263,6 +1263,9 @@ impl std::fmt::Display for FlagHelpContext {
 /// the call returned an error or correctly evaluated a flag to a type T.
 pub type EvaluateResult<'a, T> = Result<T, CliError>;
 
+/// A marker trait signifying that this implementation of Evaluatable is terminal.
+pub trait TerminalEvaluatable<'a, A, B>: Evaluatable<'a, A, B> {}
+
 /// Evaluatable provides methods for parsing and evaluating input values into a
 /// corresponding concrete type.
 pub trait Evaluatable<'a, A, B> {
@@ -2035,6 +2038,8 @@ macro_rules! generate_integer_evaluators {
                     .ok_or(CliError::ValueEvaluation)
             }
         }
+
+        impl<'a> TerminalEvaluatable<'a, &'a [&'a str], $primitive> for $value_name {}
     )*
     };
 }
@@ -2353,6 +2358,8 @@ impl<'a> Evaluatable<'a, &'a [&'a str], String> for StringValue {
     }
 }
 
+impl<'a> TerminalEvaluatable<'a, &'a [&'a str], String> for StringValue {}
+
 /// ValueOnMatch represents a terminal flag type, returning a given value on a match.
 ///
 /// # Example
@@ -2404,6 +2411,8 @@ impl<'a, V: Clone> Evaluatable<'a, &'a [&'a str], V> for ValueOnMatch<V> {
         Ok(self.value.clone())
     }
 }
+
+impl<'a, V: Clone> TerminalEvaluatable<'a, &'a [&'a str], V> for ValueOnMatch<V> {}
 
 /// FileValue represents a terminal flag type, that parses and validates a
 /// file exists in a path. Returning the file path as a String.
@@ -2489,3 +2498,5 @@ impl<'a> Evaluatable<'a, &'a [&'a str], String> for FileValue {
             .ok_or(CliError::ValueEvaluation)
     }
 }
+
+impl<'a> TerminalEvaluatable<'a, &'a [&'a str], String> for FileValue {}
