@@ -279,12 +279,14 @@ where
 impl<'a, C, B> Evaluatable<'a, &'a [&'a str], B> for CmdGroup<C>
 where
     C: Evaluatable<'a, &'a [&'a str], B>,
+    B: std::fmt::Debug,
 {
     fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<&'a [&'a str], B> {
-        match input
+        let filename = input
             .get(0)
-            .map(|&bin| std::path::Path::new(bin).file_name())
-        {
+            .map(|&bin| std::path::Path::new(bin).file_name());
+
+        match filename {
             Some(Some(name)) if name == self.name => self.commands.evaluate(&input[1..]),
             _ => Err(CliError::AmbiguousCommand),
         }
@@ -715,13 +717,15 @@ where
 
 impl<'a, F, H, B> Evaluatable<'a, &'a [&'a str], B> for Cmd<F, H>
 where
+    B: std::fmt::Debug,
     F: Evaluatable<'a, &'a [&'a str], B>,
 {
     fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<&'a [&'a str], B> {
-        match input
+        let filename = input
             .get(0)
-            .map(|&bin| std::path::Path::new(bin).file_name())
-        {
+            .map(|&bin| std::path::Path::new(bin).file_name());
+
+        match filename {
             Some(Some(name)) if name == self.name => self.flags.evaluate(&input[1..]),
             _ => Err(CliError::AmbiguousCommand),
         }
@@ -1686,9 +1690,10 @@ where
     E: Evaluatable<'a, A, B>,
 {
     fn evaluate(&self, input: A) -> EvaluateResult<'a, A, Option<B>> {
-        self.evaluator
-            .evaluate(input)
-            .map(|res| res.map(|res| Some(res)))
+        self.evaluator.evaluate(input).map(|res| match res {
+            MatchStatus::Match(rem, v) => MatchStatus::Match(rem, Some(v)),
+            MatchStatus::NoMatch(rem) => MatchStatus::Match(rem, None),
+        })
     }
 }
 
@@ -2374,7 +2379,7 @@ where
     V: PositionalArgumentValue<'a, &'a [&'a str], B>,
 {
     fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<&'a [&'a str], B> {
-        input[..]
+        let result = input[..]
             .iter()
             .enumerate()
             .find(|(_, &arg)| {
@@ -2383,8 +2388,12 @@ where
             })
             // Only need the index.
             .map(|(idx, _)| idx)
-            .and_then(|idx| self.value.evaluate_at(input, idx + 1).ok())
-            .ok_or_else(|| CliError::FlagEvaluation(self.name.to_string()))
+            .and_then(|idx| self.value.evaluate_at(input, idx + 1).ok());
+
+        match result {
+            Some(m) => Ok(m),
+            None => Ok(MatchStatus::NoMatch(input)),
+        }
     }
 }
 
