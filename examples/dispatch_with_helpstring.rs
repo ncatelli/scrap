@@ -50,6 +50,9 @@ fn main() {
     let _ = cmd
         .evaluate(&args[..])
         .map_err(|e| e.to_string())
-        .map(|(help, direction)| cmd.dispatch_with_helpstring((help, direction)))
+        .and_then(|flag_values| match flag_values {
+            MatchStatus::Match(_, v) => Ok(cmd.dispatch_with_helpstring(v)),
+            MatchStatus::NoMatch(_) => Err(scrap::CliError::AmbiguousCommand.to_string()),
+        })
         .map_err(|e| println!("{}", e));
 }

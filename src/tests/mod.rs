@@ -21,7 +21,10 @@ fn cmd_should_dispatch_a_valid_handler() {
     assert_eq!(
         Ok(()),
         cmd.evaluate(&["test", "-l", "info"][..])
-            .map(|flag_values| cmd.dispatch(flag_values))
+            .and_then(|flag_values| match flag_values {
+                MatchStatus::Match(_, v) => Ok(cmd.dispatch(v)),
+                MatchStatus::NoMatch(_) => Err(CliError::AmbiguousCommand),
+            })
     );
 }
 
