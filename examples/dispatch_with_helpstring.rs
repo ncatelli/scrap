@@ -50,12 +50,9 @@ fn main() {
     let _ = cmd
         .evaluate(&args[..])
         .map_err(|e| e.to_string())
-        .and_then(|flag_values| match flag_values {
-            MatchStatus::Match(_, v) => {
-                cmd.dispatch_with_helpstring(v);
-                Ok(())
-            }
-            MatchStatus::NoMatch(_) => Err(scrap::CliError::AmbiguousCommand.to_string()),
+        .map(|flag_values| {
+            let inner = flag_values.unwrap();
+            cmd.dispatch_with_helpstring(inner);
         })
         .map_err(|e| println!("{}", e));
 }

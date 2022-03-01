@@ -281,7 +281,7 @@ where
     C: Evaluatable<'a, &'a [&'a str], B>,
     B: std::fmt::Debug,
 {
-    fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<&'a [&'a str], B> {
+    fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, B> {
         let filename = input
             .get(0)
             .map(|&bin| std::path::Path::new(bin).file_name());
@@ -409,12 +409,10 @@ where
     C1: Evaluatable<'a, &'a [&'a str], B>,
     C2: Evaluatable<'a, &'a [&'a str], C>,
 {
-    fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<&'a [&'a str], Either<B, C>> {
+    fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, Either<B, C>> {
         match (self.left.evaluate(input), self.right.evaluate(input)) {
-            (Ok(MatchStatus::Match(rem, v)), _) => Ok(MatchStatus::Match(rem, Either::Left(v))),
-            (Err(_), Ok(MatchStatus::Match(rem, v))) => {
-                Ok(MatchStatus::Match(rem, Either::Right(v)))
-            }
+            (Ok(Value { span, value: b }), Err(_)) => Ok(Value::new(span, Either::Left(b))),
+            (Err(_), Ok(Value { span, value: c })) => Ok(Value::new(span, Either::Right(c))),
             _ => Err(CliError::AmbiguousCommand),
         }
     }
@@ -720,7 +718,7 @@ where
     B: std::fmt::Debug,
     F: Evaluatable<'a, &'a [&'a str], B>,
 {
-    fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<&'a [&'a str], B> {
+    fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, B> {
         let filename = input
             .get(0)
             .map(|&bin| std::path::Path::new(bin).file_name());
@@ -1265,70 +1263,73 @@ impl std::fmt::Display for FlagHelpContext {
     }
 }
 
-/// MatchStatus represents a non-error parser result with two cases, signifying
-/// whether the parse returned a match or not.
-#[derive(Debug, PartialEq, Clone)]
-pub enum MatchStatus<U, T> {
-    Match(U, T),
-    NoMatch(U),
+use core::ops::Range;
+
+#[derive(Debug, Default, PartialEq, Clone)]
+pub struct Span(Vec<usize>);
+
+impl Span {
+    pub fn from_range(range: Range<usize>) -> Self {
+        Self::from(range)
+    }
+
+    pub fn join(mut self, other: Span) -> Self {
+        for v in other.0 {
+            self.0.push(v)
+        }
+
+        self
+    }
 }
 
-impl<U, T> MatchStatus<U, T> {
+impl From<Range<usize>> for Span {
+    fn from(src: Range<usize>) -> Self {
+        let range = src.collect();
+        Self(range)
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct Value<T> {
+    span: Span,
+    value: T,
+}
+
+impl<T> Value<T> {
+    pub fn new(span: Span, value: T) -> Self {
+        Self { span, value }
+    }
+
+    pub fn from_offset(self, offset: usize) -> Self {
+        let adjusted_span_inner = self.span.0.iter().map(|v| *v + offset).collect();
+        let span = Span(adjusted_span_inner);
+
+        Self {
+            span,
+            value: self.value,
+        }
+    }
+
     pub fn unwrap(self) -> T {
-        match self {
-            Self::Match(_, inner) => inner,
-            _ => panic!("unable to unwrap inner value: NoMatch"),
-        }
-    }
-
-    pub fn unwrap_or(self, default: T) -> T {
-        match self {
-            Self::Match(_, inner) => inner,
-            _ => default,
-        }
-    }
-
-    pub fn unwrap_or_else<F>(self, f: F) -> T
-    where
-        F: FnOnce() -> T,
-    {
-        match self {
-            Self::Match(_, inner) => inner,
-            _ => f(),
-        }
+        self.value
     }
 
     pub fn some(self) -> Option<T> {
-        match self {
-            MatchStatus::Match(_, inner) => Some(inner),
-            MatchStatus::NoMatch(_) => None,
-        }
+        Some(self.value)
     }
 
-    pub fn map<V, F>(self, map_fn: F) -> MatchStatus<U, V>
+    pub fn map<V, F>(self, map_fn: F) -> Value<V>
     where
         F: FnOnce(T) -> V,
     {
-        match self {
-            MatchStatus::Match(remainder, inner) => MatchStatus::Match(remainder, map_fn(inner)),
-            MatchStatus::NoMatch(rem) => MatchStatus::NoMatch(rem),
-        }
-    }
-
-    pub fn and_then<V, F>(self, map_fn: F) -> MatchStatus<U, V>
-    where
-        F: FnOnce(Self) -> MatchStatus<U, V>,
-    {
-        match self {
-            ms @ MatchStatus::Match(..) => map_fn(ms),
-            MatchStatus::NoMatch(rem) => MatchStatus::NoMatch(rem),
-        }
+        let (span, value) = (self.span, self.value);
+        Value::new(span, map_fn(value))
     }
 }
 
 /// Represents the result of an Evaluatable::evaluate call signifying whether
 /// the call returned an error or correctly evaluated a flag to a type T.
-pub type EvaluateResult<'a, U, T> = Result<MatchStatus<U, T>, CliError>;
+pub type EvaluateResult<'a, T> = Result<Value<T>, CliError>;
 
 /// A marker trait signifying that this implementation of Evaluatable is terminal.
 pub trait TerminalEvaluatable<'a, A, B>: Evaluatable<'a, A, B> {}
@@ -1336,7 +1337,7 @@ pub trait TerminalEvaluatable<'a, A, B>: Evaluatable<'a, A, B> {}
 /// Evaluatable provides methods for parsing and evaluating input values into a
 /// corresponding concrete type.
 pub trait Evaluatable<'a, A, B> {
-    fn evaluate(&self, input: A) -> EvaluateResult<'a, A, B>;
+    fn evaluate(&self, input: A) -> EvaluateResult<'a, B>;
 
     fn join<E, C>(self, evaluator2: E) -> BoxedEvaluator<'a, A, (B, C)>
     where
@@ -1387,7 +1388,7 @@ impl<'a, A, B> ShortHelpable for BoxedEvaluator<'a, A, B> {
 }
 
 impl<'a, A, B> Evaluatable<'a, A, B> for BoxedEvaluator<'a, A, B> {
-    fn evaluate(&self, input: A) -> EvaluateResult<'a, A, B> {
+    fn evaluate(&self, input: A) -> EvaluateResult<'a, B> {
         self.evaluator.evaluate(input)
     }
 }
@@ -1395,9 +1396,9 @@ impl<'a, A, B> Evaluatable<'a, A, B> for BoxedEvaluator<'a, A, B> {
 impl<'a, F, A, B> Evaluatable<'a, A, B> for F
 where
     A: 'a,
-    F: Fn(A) -> EvaluateResult<'a, A, B>,
+    F: Fn(A) -> EvaluateResult<'a, B>,
 {
-    fn evaluate(&self, input: A) -> EvaluateResult<'a, A, B> {
+    fn evaluate(&self, input: A) -> EvaluateResult<'a, B> {
         self(input)
     }
 }
@@ -1457,20 +1458,19 @@ where
     E1: Evaluatable<'a, A, B>,
     E2: Evaluatable<'a, A, C>,
 {
-    fn evaluate(&self, input: A) -> EvaluateResult<'a, A, (B, C)> {
+    fn evaluate(&self, input: A) -> EvaluateResult<'a, (B, C)> {
         self.evaluator1
             .evaluate(input)
             .map_err(|e| e)
-            .and_then(|e1_res| match e1_res {
-                MatchStatus::Match(rem, e1_unwrapped_res) => match self.evaluator2.evaluate(rem) {
-                    Ok(MatchStatus::Match(rem, e2_unwrapped_res)) => Ok(MatchStatus::Match(
-                        rem,
-                        (e1_unwrapped_res, e2_unwrapped_res),
-                    )),
-                    Ok(MatchStatus::NoMatch(rem)) => Ok(MatchStatus::NoMatch(rem)),
-                    Err(e) => Err(e),
-                },
-                MatchStatus::NoMatch(_) => todo!(),
+            .and_then(|e1_res| match self.evaluator2.evaluate(input) {
+                Ok(e2_res) => {
+                    let (e1_span, e1_val) = (e1_res.span, e1_res.value);
+                    let (e2_span, e2_val) = (e2_res.span, e2_res.value);
+                    let joined_span = e1_span.join(e2_span);
+
+                    Ok(Value::new(joined_span, (e1_val, e2_val)))
+                }
+                Err(e) => Err(e),
             })
     }
 }
@@ -1598,7 +1598,7 @@ where
     B: Clone,
     E: Evaluatable<'a, A, Option<B>>,
 {
-    fn evaluate(&self, input: A) -> EvaluateResult<'a, A, B> {
+    fn evaluate(&self, input: A) -> EvaluateResult<'a, B> {
         self.evaluator
             .evaluate(input)
             .map(|op| op.map(|opt| opt.unwrap_or_else(|| self.default.clone())))
@@ -1689,11 +1689,11 @@ where
     A: 'a,
     E: Evaluatable<'a, A, B>,
 {
-    fn evaluate(&self, input: A) -> EvaluateResult<'a, A, Option<B>> {
-        self.evaluator.evaluate(input).map(|res| match res {
-            MatchStatus::Match(rem, v) => MatchStatus::Match(rem, Some(v)),
-            MatchStatus::NoMatch(rem) => MatchStatus::Match(rem, None),
-        })
+    fn evaluate(&self, input: A) -> EvaluateResult<'a, Option<B>> {
+        match self.evaluator.evaluate(input).ok() {
+            Some(Value { span, value }) => Ok(Value::new(span, Some(value))),
+            None => Ok(Value::new(Span::default(), None)),
+        }
     }
 }
 
@@ -1802,14 +1802,11 @@ where
     B: Clone + PartialEq,
     E: Evaluatable<'a, A, B>,
 {
-    fn evaluate(&self, input: A) -> EvaluateResult<'a, A, B> {
+    fn evaluate(&self, input: A) -> EvaluateResult<'a, B> {
         self.evaluator.evaluate(input).and_then(|op| {
             self.choices
                 .iter()
-                .any(|choice| match &op {
-                    MatchStatus::Match(_, v) => v == choice,
-                    _ => false,
-                })
+                .any(|choice| choice == &op.value)
                 .then(|| op)
                 .ok_or(CliError::ValueEvaluation)
         })
@@ -1887,7 +1884,7 @@ impl Defaultable for ExpectStringValue {}
 
 #[allow(deprecated)]
 impl<'a> Evaluatable<'a, &'a [&'a str], String> for ExpectStringValue {
-    fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, &'a [&'a str], String> {
+    fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, String> {
         self.inner.evaluate(input)
     }
 }
@@ -1963,7 +1960,7 @@ impl StoreTrue {
 
 #[allow(deprecated)]
 impl<'a> Evaluatable<'a, &'a [&'a str], bool> for StoreTrue {
-    fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, &'a [&'a str], bool> {
+    fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, bool> {
         self.inner.evaluate(input)
     }
 }
@@ -2039,7 +2036,7 @@ impl StoreFalse {
 
 #[allow(deprecated)]
 impl<'a> Evaluatable<'a, &'a [&'a str], bool> for StoreFalse {
-    fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, &'a [&'a str], bool> {
+    fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, bool> {
         self.inner.evaluate(input)
     }
 }
@@ -2086,7 +2083,7 @@ macro_rules! generate_integer_evaluators {
 
         #[allow(deprecated)]
         impl<'a> Evaluatable<'a, &'a [&'a str], $primitive> for $name {
-            fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a,&'a [&'a str], $primitive> {
+            fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, $primitive> {
                 self.inner.evaluate(input)
             }
         }
@@ -2105,19 +2102,19 @@ macro_rules! generate_integer_evaluators {
         pub struct $value_name;
 
         impl<'a> PositionalArgumentValue<'a, &'a [&'a str], $primitive> for $value_name {
-            fn evaluate_at(&self, input: &'a [&'a str], pos: usize) -> EvaluateResult<'a, &'a [&'a str], $primitive> {
-                self.evaluate(&input[pos..])
+            fn evaluate_at(&self, input: &'a [&'a str], pos: usize) -> EvaluateResult<'a , $primitive> {
+                self.evaluate(&input[pos..]).map(|v| v.from_offset(pos))
             }
         }
 
         impl<'a> Evaluatable<'a, &'a [&'a str], $primitive> for $value_name {
-            fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, &'a [&'a str], $primitive> {
+            fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, $primitive> {
                 let result = input
                     .get(0)
                     .and_then(|&v| v.parse::<$primitive>().ok())
                     .ok_or(CliError::ValueEvaluation);
 
-               result.map(|matching_int| MatchStatus::Match(&input[1..], matching_int))
+               result.map(|matching_int| Value::new(Span::from_range(0..1), matching_int))
             }
         }
 
@@ -2201,19 +2198,13 @@ impl<'a, E> Evaluatable<'a, &'a [&'a str], std::fs::File> for WithOpen<E>
 where
     E: Evaluatable<'a, &'a [&'a str], String> + Openable,
 {
-    fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, &'a [&'a str], std::fs::File> {
-        self.evaluator.evaluate(input).map(|fpm| match fpm {
-            MatchStatus::Match(rem, fp) => {
-                let res = std::fs::File::open(&fp).map_err(|e| {
+    fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, std::fs::File> {
+        self.evaluator.evaluate(input).and_then(|vfp| {
+            std::fs::File::open(&vfp.value)
+                .map_err(|e| {
                     CliError::FlagEvaluation(format!("unable to open file evaluator: {}", e))
-                });
-
-                match res {
-                    Ok(f) => MatchStatus::Match(rem, f),
-                    Err(_) => MatchStatus::NoMatch(input),
-                }
-            }
-            MatchStatus::NoMatch(rem) => MatchStatus::NoMatch(rem),
+                })
+                .map(|f| Value::new(vfp.span, f))
         })
     }
 }
@@ -2308,7 +2299,7 @@ impl Defaultable for ExpectFilePath {}
 
 #[allow(deprecated)]
 impl<'a> Evaluatable<'a, &'a [&'a str], String> for ExpectFilePath {
-    fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, &'a [&'a str], String> {
+    fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, String> {
         self.inner.evaluate(input)
     }
 }
@@ -2327,8 +2318,8 @@ impl ShortHelpable for ExpectFilePath {
 // This implementation exists mostly for cases where a Cmd, or SubCommands
 // object has no flags associated with it.
 impl<'a> Evaluatable<'a, &'a [&'a str], ()> for () {
-    fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, &'a [&'a str], ()> {
-        Ok(MatchStatus::Match(input, ()))
+    fn evaluate(&self, _: &'a [&'a str]) -> EvaluateResult<'a, ()> {
+        Ok(Value::new(Span::from_range(0..1), ()))
     }
 }
 
@@ -2378,8 +2369,8 @@ impl<'a, V, B> Evaluatable<'a, &'a [&'a str], B> for FlagWithValue<V>
 where
     V: PositionalArgumentValue<'a, &'a [&'a str], B>,
 {
-    fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<&'a [&'a str], B> {
-        let result = input[..]
+    fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, B> {
+        input[..]
             .iter()
             .enumerate()
             .find(|(_, &arg)| {
@@ -2388,12 +2379,18 @@ where
             })
             // Only need the index.
             .map(|(idx, _)| idx)
-            .and_then(|idx| self.value.evaluate_at(input, idx + 1).ok());
-
-        match result {
-            Some(m) => Ok(m),
-            None => Ok(MatchStatus::NoMatch(input)),
-        }
+            .and_then(|idx| {
+                self.value
+                    .evaluate_at(input, idx + 1)
+                    .map(|val| val.from_offset(idx + 1))
+                    .map(|v| {
+                        let span = v.span;
+                        let adjusted = Span::from_range(idx..idx + 1).join(span);
+                        Value::new(adjusted, v.value)
+                    })
+                    .ok()
+            })
+            .ok_or_else(|| CliError::FlagEvaluation(self.name.to_string()))
     }
 }
 
@@ -2412,7 +2409,7 @@ impl<V> ShortHelpable for FlagWithValue<V> {
 
 /// PositionalArgumentValue Provides a value type for evaluating positionally.
 pub trait PositionalArgumentValue<'a, A, B>: Evaluatable<'a, A, B> {
-    fn evaluate_at(&self, input: A, pos: usize) -> EvaluateResult<'a, &'a [&'a str], B>;
+    fn evaluate_at(&self, input: A, pos: usize) -> EvaluateResult<'a, B>;
 }
 
 /// Represents a String argument
@@ -2437,20 +2434,16 @@ pub trait PositionalArgumentValue<'a, A, B>: Evaluatable<'a, A, B> {
 pub struct StringValue;
 
 impl<'a> PositionalArgumentValue<'a, &'a [&'a str], String> for StringValue {
-    fn evaluate_at(
-        &self,
-        input: &'a [&'a str],
-        pos: usize,
-    ) -> EvaluateResult<'a, &'a [&'a str], String> {
+    fn evaluate_at(&self, input: &'a [&'a str], pos: usize) -> EvaluateResult<'a, String> {
         self.evaluate(&input[pos..])
     }
 }
 
 impl<'a> Evaluatable<'a, &'a [&'a str], String> for StringValue {
-    fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, &'a [&'a str], String> {
+    fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, String> {
         input
             .get(0)
-            .map(|v| MatchStatus::Match(&input[1..], v.to_string()))
+            .map(|v| Value::new(Span::from_range(0..1), v.to_string()))
             .ok_or(CliError::ValueEvaluation)
     }
 }
@@ -2498,18 +2491,14 @@ impl<V> ValueOnMatch<V> {
 }
 
 impl<'a, V: Clone> PositionalArgumentValue<'a, &'a [&'a str], V> for ValueOnMatch<V> {
-    fn evaluate_at(
-        &self,
-        input: &'a [&'a str],
-        pos: usize,
-    ) -> EvaluateResult<'a, &'a [&'a str], V> {
+    fn evaluate_at(&self, input: &'a [&'a str], pos: usize) -> EvaluateResult<'a, V> {
         self.evaluate(&input[pos..])
     }
 }
 
 impl<'a, V: Clone> Evaluatable<'a, &'a [&'a str], V> for ValueOnMatch<V> {
-    fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, &'a [&'a str], V> {
-        Ok(MatchStatus::Match(&input[1..], self.value.clone()))
+    fn evaluate(&self, _: &'a [&'a str]) -> EvaluateResult<'a, V> {
+        Ok(Value::new(Span::from_range(0..1), self.value.clone()))
     }
 }
 
@@ -2574,17 +2563,13 @@ impl Openable for FileValue {}
 impl Defaultable for FileValue {}
 
 impl<'a> PositionalArgumentValue<'a, &'a [&'a str], String> for FileValue {
-    fn evaluate_at(
-        &self,
-        input: &'a [&'a str],
-        pos: usize,
-    ) -> EvaluateResult<'a, &'a [&'a str], String> {
+    fn evaluate_at(&self, input: &'a [&'a str], pos: usize) -> EvaluateResult<'a, String> {
         self.evaluate(&input[pos..])
     }
 }
 
 impl<'a> Evaluatable<'a, &'a [&'a str], String> for FileValue {
-    fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, &'a [&'a str], String> {
+    fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, String> {
         use std::fs::OpenOptions;
 
         input
@@ -2599,8 +2584,7 @@ impl<'a> Evaluatable<'a, &'a [&'a str], String> for FileValue {
                     .ok()
                     .map(|_| p)
             })
-            .map(|&v| v.to_owned())
-            .map(|fv| MatchStatus::Match(&input[1..], fv))
+            .map(|&v| Value::new(Span::from_range(0..1), v.to_owned()))
             .ok_or(CliError::ValueEvaluation)
     }
 }

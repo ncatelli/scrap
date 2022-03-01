@@ -48,8 +48,8 @@ fn main() {
     let res = cmd
         .evaluate(&args[..])
         .map_err(|e| e.to_string())
-        .and_then(|flag_values| match flag_values {
-            MatchStatus::Match(_, (help, direction)) if !help => {
+        .and_then(|flag_values| match flag_values.unwrap() {
+            (help, direction) if !help => {
                 cmd.dispatch((help, direction));
                 Ok(())
             }

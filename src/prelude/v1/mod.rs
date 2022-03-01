@@ -1,5 +1,5 @@
-/// provides a wrapper around match statements.
-pub use crate::MatchStatus;
+/// Provides a wrapper around spanned matching argument values.
+pub use crate::Value;
 
 /// Defines behaviors for traits that can default to a if not specified value.
 pub use crate::Defaultable;

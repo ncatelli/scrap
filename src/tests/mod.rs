@@ -21,12 +21,9 @@ fn cmd_should_dispatch_a_valid_handler() {
     assert_eq!(
         Ok(()),
         cmd.evaluate(&["test", "-l", "info"][..])
-            .and_then(|flag_values| match flag_values {
-                MatchStatus::Match(_, v) => {
-                    cmd.dispatch(v);
-                    Ok(())
-                }
-                MatchStatus::NoMatch(_) => Err(CliError::AmbiguousCommand),
+            .map(|flag_values| {
+                let inner = flag_values.value;
+                cmd.dispatch(inner);
             })
     );
 }

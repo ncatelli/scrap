@@ -33,15 +33,10 @@ fn main() {
         );
 
     let help_string = cmd_group.help();
-    let eval_res = cmd_group
-        .evaluate(&args[..])
-        .and_then(|flag_values| match flag_values {
-            MatchStatus::Match(_, v) => {
-                cmd_group.dispatch(v);
-                Ok(())
-            }
-            MatchStatus::NoMatch(_) => Err(CliError::AmbiguousCommand),
-        });
+    let eval_res = cmd_group.evaluate(&args[..]).map(|flag_values| {
+        let inner = flag_values.unwrap();
+        cmd_group.dispatch(inner);
+    });
 
     match eval_res {
         Ok(_) => (),
