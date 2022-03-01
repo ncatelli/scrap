@@ -57,13 +57,12 @@
 //! let res = cmd
 //!     .evaluate(&args[..])
 //!     .map_err(|e| e.to_string())
-//!     .and_then(|(help, direction)| {
-//!         if help {
-//!             Err("output help".to_string())
-//!         } else {
-//!             cmd.dispatch((help, direction));
+//!     .and_then(|Value { span, value }| match value {
+//!         (help, direction) if !help => {
+//!             cmd.dispatch(Value::new(span, (help, direction)));
 //!             Ok(())
 //!         }
+//!         _ => Err("output help".to_string()),
 //!     });
 //!
 //! match res {
@@ -128,7 +127,7 @@ impl std::fmt::Display for CliError {
 /// let commands = OneOf::new(left_cmd, right_cmd);
 ///
 /// assert_eq!(
-///     Ok(Either::Left("test".to_string())),
+///     Ok(Value::new(Span::from_range(0..4), Either::Left("test".to_string()))),
 ///     CmdGroup::new("testgroup").with_command(commands)
 ///         .evaluate(&["testgroup", "test_one", "-n", "test"][..])
 /// );
@@ -287,9 +286,14 @@ where
             .map(|&bin| std::path::Path::new(bin).file_name());
 
         match filename {
-            Some(Some(name)) if name == self.name => self.commands.evaluate(&input[1..]),
+            Some(Some(name)) if name == self.name => self
+                .commands
+                .evaluate(&input[1..])
+                .map(|v| v.from_offset(1)),
             _ => Err(CliError::AmbiguousCommand),
         }
+        // Add group to range
+        .map(|v| Value::new(Span::from_range(0..1).join(v.span), v.value))
     }
 }
 
@@ -297,7 +301,7 @@ impl<'a, C, A, B, R> Dispatchable<A, B, R> for CmdGroup<C>
 where
     C: Evaluatable<'a, A, B> + Dispatchable<A, B, R>,
 {
-    fn dispatch(self, flag_values: B) -> R {
+    fn dispatch(self, flag_values: Value<B>) -> R {
         self.commands.dispatch(flag_values)
     }
 }
@@ -307,13 +311,13 @@ where
     Self: Helpable<Output = String>,
     C: DispatchableWithHelpString<B, R>,
 {
-    fn dispatch_with_helpstring(self, flag_values: B) -> R {
+    fn dispatch_with_helpstring(self, flag_values: Value<B>) -> R {
         let help_string = self.help();
         self.commands
             .dispatch_with_supplied_helpstring(help_string, flag_values)
     }
 
-    fn dispatch_with_supplied_helpstring(self, help_string: String, flag_values: B) -> R {
+    fn dispatch_with_supplied_helpstring(self, help_string: String, flag_values: Value<B>) -> R {
         self.commands
             .dispatch_with_supplied_helpstring(help_string, flag_values)
     }
@@ -376,7 +380,7 @@ pub enum Either<A, B> {
 ///     });
 ///
 /// assert_eq!(
-///     Ok(Either::Left("test".to_string())),
+///     Ok(Value::new(Span::from_range(0..3), Either::Left("test".to_string()))),
 ///     OneOf::new(left_cmd, right_cmd)
 ///         .evaluate(&["test_one", "-n", "test"][..])
 /// );
@@ -423,10 +427,13 @@ where
     C1: Evaluatable<'a, A, B> + Dispatchable<A, B, R>,
     C2: Evaluatable<'a, A, C> + Dispatchable<A, C, R>,
 {
-    fn dispatch(self, flag_values: Either<B, C>) -> R {
-        match flag_values {
-            Either::Left(b) => self.left.dispatch(b),
-            Either::Right(c) => self.right.dispatch(c),
+    fn dispatch(self, flag_values: Value<Either<B, C>>) -> R {
+        let span = flag_values.span;
+        let values = flag_values.value;
+
+        match values {
+            Either::Left(b) => self.left.dispatch(Value::new(span, b)),
+            Either::Right(c) => self.right.dispatch(Value::new(span, c)),
         }
     }
 }
@@ -437,22 +444,36 @@ where
     C1: DispatchableWithHelpString<B, R>,
     C2: DispatchableWithHelpString<C, R>,
 {
-    fn dispatch_with_helpstring(self, flag_values: Either<B, C>) -> R {
+    fn dispatch_with_helpstring(self, flag_values: Value<Either<B, C>>) -> R {
         let help_string = self.help();
-        match flag_values {
-            Either::Left(b) => self.left.dispatch_with_supplied_helpstring(help_string, b),
-            Either::Right(c) => self.right.dispatch_with_supplied_helpstring(help_string, c),
+        let span = flag_values.span;
+        let values = flag_values.value;
+
+        match values {
+            Either::Left(b) => self
+                .left
+                .dispatch_with_supplied_helpstring(help_string, Value::new(span, b)),
+            Either::Right(c) => self
+                .right
+                .dispatch_with_supplied_helpstring(help_string, Value::new(span, c)),
         }
     }
 
     fn dispatch_with_supplied_helpstring(
         self,
         help_string: String,
-        flag_values: Either<B, C>,
+        flag_values: Value<Either<B, C>>,
     ) -> R {
-        match flag_values {
-            Either::Left(b) => self.left.dispatch_with_supplied_helpstring(help_string, b),
-            Either::Right(c) => self.right.dispatch_with_supplied_helpstring(help_string, c),
+        let span = flag_values.span;
+        let values = flag_values.value;
+
+        match values {
+            Either::Left(b) => self
+                .left
+                .dispatch_with_supplied_helpstring(help_string, Value::new(span, b)),
+            Either::Right(c) => self
+                .right
+                .dispatch_with_supplied_helpstring(help_string, Value::new(span, c)),
         }
     }
 }
@@ -482,7 +503,7 @@ pub trait IsCmd {}
 /// use scrap::*;
 ///
 /// assert_eq!(
-///     Ok(("foo".to_string(), "info".to_string())),
+///     Ok(Value::new(Span::from_range(0..3), ("foo".to_string(), "info".to_string()))),
 ///     Cmd::new("test")
 ///         .description("a test cmd")
 ///         .with_flag(
@@ -724,9 +745,14 @@ where
             .map(|&bin| std::path::Path::new(bin).file_name());
 
         match filename {
-            Some(Some(name)) if name == self.name => self.flags.evaluate(&input[1..]),
+            Some(Some(name)) if name == self.name => {
+                // capture offset for binary.
+                self.flags.evaluate(&input[1..]).map(|v| v.from_offset(1))
+            }
             _ => Err(CliError::AmbiguousCommand),
         }
+        // include binary in span range
+        .map(|v| Value::new(Span::from_range(0..1).join(v.span), v.value))
     }
 }
 
@@ -771,8 +797,9 @@ where
     T: Evaluatable<'a, A, B>,
     H: Fn(B) -> R,
 {
-    fn dispatch(self, flag_values: B) -> R {
-        (self.handler)(flag_values)
+    fn dispatch(self, flag_values: Value<B>) -> R {
+        let inner = flag_values.unwrap();
+        (self.handler)(inner)
     }
 }
 
@@ -781,26 +808,28 @@ where
     Self: Helpable<Output = String>,
     H: Fn(String, B) -> R,
 {
-    fn dispatch_with_helpstring(self, flag_values: B) -> R {
+    fn dispatch_with_helpstring(self, flag_values: Value<B>) -> R {
+        let inner = flag_values.unwrap();
         let help_string = self.help();
-        (self.handler)(help_string, flag_values)
+        (self.handler)(help_string, inner)
     }
 
-    fn dispatch_with_supplied_helpstring(self, help_string: String, flag_values: B) -> R {
-        (self.handler)(help_string, flag_values)
+    fn dispatch_with_supplied_helpstring(self, help_string: String, flag_values: Value<B>) -> R {
+        let inner = flag_values.unwrap();
+        (self.handler)(help_string, inner)
     }
 }
 
 /// Defines behaviors for types that can dispatch an evaluator to a function.
 pub trait Dispatchable<A, B, R> {
-    fn dispatch(self, flag_values: B) -> R;
+    fn dispatch(self, flag_values: Value<B>) -> R;
 }
 
 /// Defines behaviors for types that can dispatch an evaluator to a function
 /// with additional help documentation.
 pub trait DispatchableWithHelpString<B, R> {
-    fn dispatch_with_helpstring(self, flag_values: B) -> R;
-    fn dispatch_with_supplied_helpstring(self, help_string: String, flag_values: B) -> R;
+    fn dispatch_with_helpstring(self, flag_values: Value<B>) -> R;
+    fn dispatch_with_supplied_helpstring(self, help_string: String, flag_values: Value<B>) -> R;
 }
 
 /// Much like Helpable, ShortHelpable is for defining the functionality to
@@ -846,13 +875,13 @@ impl Flag {
     /// use scrap::*;
     ///
     /// assert_eq!(
-    ///     Ok("foo".to_string()),
+    ///     Ok(Value::new(Span::from_range(1..3), "foo".to_string())),
     ///     Flag::expect_string("name", "n", "A name.")
     ///         .evaluate(&["test", "-n", "foo"][..])
     /// );
     ///
     /// assert_eq!(
-    ///     Ok("foo".to_string()),
+    ///     Ok(Value::new(Span::from_range(1..3), "foo".to_string())),
     ///     FlagWithValue::new("name", "n", "A name.", StringValue)
     ///         .evaluate(&["test", "-n", "foo"][..])
     /// );
@@ -874,13 +903,13 @@ impl Flag {
     /// use scrap::*;
     ///
     /// assert_eq!(
-    ///     Ok(true),
+    ///     Ok(Value::new(Span::from_range(1..2), true)),
     ///     Flag::store_true("debug", "d", "Run command in debug mode.")
     ///         .evaluate(&["test", "-d"][..])
     /// );
     ///
     /// assert_eq!(
-    ///     Ok(true),
+    ///     Ok(Value::new(Span::from_range(1..2), true)),
     ///     FlagWithValue::new("debug", "d", "Run command in debug mode.", ValueOnMatch::new(true))
     ///         .evaluate(&["test", "-d"][..])
     /// );
@@ -902,13 +931,13 @@ impl Flag {
     /// use scrap::*;
     ///
     /// assert_eq!(
-    ///     Ok(false),
+    ///     Ok(Value::new(Span::from_range(1..2), false)),
     ///     Flag::store_false("no-wait", "n", "don't wait for a response.")
     ///         .evaluate(&["test", "-n"][..])
     /// );
     ///
     /// assert_eq!(
-    ///     Ok(false),
+    ///     Ok(Value::new(Span::from_range(1..2), false)),
     ///     FlagWithValue::new("no-wait", "n", "don't wait for a response.", ValueOnMatch::new(false))
     ///         .evaluate(&["test", "-n"][..])
     /// );
@@ -930,13 +959,13 @@ impl Flag {
     /// use scrap::*;
     ///
     /// assert_eq!(
-    ///     Ok(60),
+    ///     Ok(Value::new(Span::from_range(1..3), 60)),
     ///     Flag::expect_i8("timeout", "t", "A timeout.")
     ///         .evaluate(&["test", "-t", "60"][..])
     /// );
     ///
     /// assert_eq!(
-    ///     Ok(60),
+    ///     Ok(Value::new(Span::from_range(1..3), 60)),
     ///     FlagWithValue::new("timeout", "t", "A timeout.", I8Value)
     ///         .evaluate(&["test", "-t", "60"][..])
     /// );
@@ -958,13 +987,13 @@ impl Flag {
     /// use scrap::*;
     ///
     /// assert_eq!(
-    ///     Ok(60),
+    ///     Ok(Value::new(Span::from_range(1..3), 60)),
     ///     Flag::expect_i16("timeout", "t", "A timeout.")
     ///         .evaluate(&["test", "-t", "60"][..])
     /// );
     ///
     /// assert_eq!(
-    ///     Ok(60),
+    ///     Ok(Value::new(Span::from_range(1..3), 60)),
     ///     FlagWithValue::new("timeout", "t", "A timeout.", I16Value)
     ///         .evaluate(&["test", "-t", "60"][..])
     /// );
@@ -986,13 +1015,13 @@ impl Flag {
     /// use scrap::*;
     ///
     /// assert_eq!(
-    ///     Ok(60),
+    ///     Ok(Value::new(Span::from_range(1..3), 60)),
     ///     Flag::expect_i32("timeout", "t", "A timeout.")
     ///         .evaluate(&["test", "-t", "60"][..])
     /// );
     ///
     /// assert_eq!(
-    ///     Ok(60),
+    ///     Ok(Value::new(Span::from_range(1..3), 60)),
     ///     FlagWithValue::new("timeout", "t", "A timeout.", I32Value)
     ///         .evaluate(&["test", "-t", "60"][..])
     /// );
@@ -1014,13 +1043,13 @@ impl Flag {
     /// use scrap::*;
     ///
     /// assert_eq!(
-    ///     Ok(60),
+    ///     Ok(Value::new(Span::from_range(1..3), 60)),
     ///     Flag::expect_i64("timeout", "t", "A timeout.")
     ///         .evaluate(&["test", "-t", "60"][..])
     /// );
     ///
     /// assert_eq!(
-    ///     Ok(60),
+    ///     Ok(Value::new(Span::from_range(1..3), 60)),
     ///     FlagWithValue::new("timeout", "t", "A timeout.", I64Value)
     ///         .evaluate(&["test", "-t", "60"][..])
     /// );
@@ -1042,13 +1071,13 @@ impl Flag {
     /// use scrap::*;
     ///
     /// assert_eq!(
-    ///     Ok(60),
+    ///     Ok(Value::new(Span::from_range(1..3), 60)),
     ///     Flag::expect_u8("timeout", "t", "A timeout.")
     ///         .evaluate(&["test", "-t", "60"][..])
     /// );
     ///
     /// assert_eq!(
-    ///     Ok(60),
+    ///     Ok(Value::new(Span::from_range(1..3), 60)),
     ///     FlagWithValue::new("timeout", "t", "A timeout.", U8Value)
     ///         .evaluate(&["test", "-t", "60"][..])
     /// );
@@ -1070,13 +1099,13 @@ impl Flag {
     /// use scrap::*;
     ///
     /// assert_eq!(
-    ///     Ok(60),
+    ///     Ok(Value::new(Span::from_range(1..3), 60)),
     ///     Flag::expect_u16("timeout", "t", "A timeout.")
     ///         .evaluate(&["test", "-t", "60"][..])
     /// );
     ///
     /// assert_eq!(
-    ///     Ok(60),
+    ///     Ok(Value::new(Span::from_range(1..3), 60)),
     ///     FlagWithValue::new("timeout", "t", "A timeout.", U16Value)
     ///         .evaluate(&["test", "-t", "60"][..])
     /// );
@@ -1098,13 +1127,13 @@ impl Flag {
     /// use scrap::*;
     ///
     /// assert_eq!(
-    ///     Ok(60),
+    ///     Ok(Value::new(Span::from_range(1..3), 60)),
     ///     Flag::expect_u32("timeout", "t", "A timeout.")
     ///         .evaluate(&["test", "-t", "60"][..])
     /// );
     ///
     /// assert_eq!(
-    ///     Ok(60),
+    ///     Ok(Value::new(Span::from_range(1..3), 60)),
     ///     FlagWithValue::new("timeout", "t", "A timeout.", U32Value)
     ///         .evaluate(&["test", "-t", "60"][..])
     /// );
@@ -1126,13 +1155,13 @@ impl Flag {
     /// use scrap::*;
     ///
     /// assert_eq!(
-    ///     Ok(60),
+    ///     Ok(Value::new(Span::from_range(1..3), 60)),
     ///     Flag::expect_u64("timeout", "t", "A timeout.")
     ///         .evaluate(&["test", "-t", "60"][..])
     /// );
     ///
     /// assert_eq!(
-    ///     Ok(60),
+    ///     Ok(Value::new(Span::from_range(1..3), 60)),
     ///     ExpectU64Value::new("timeout", "t", "A timeout.")
     ///         .evaluate(&["test", "-t", "60"][..])
     /// );
@@ -1154,13 +1183,13 @@ impl Flag {
     /// use scrap::*;
     ///
     /// assert_eq!(
-    ///     Ok("info".to_string()),
+    ///     Ok(Value::new(Span::from_range(1..3), "info".to_string())),
     ///     Flag::with_choices("log-level", "l", "A log level.", ["info".to_string(), "warn".to_string()], StringValue)
     ///         .evaluate(&["hello", "-l", "info"][..])
     /// );
     ///
     /// assert_eq!(
-    ///     Ok("info".to_string()),
+    ///     Ok(Value::new(Span::from_range(1..3), "info".to_string())),
     ///     WithChoices::new(
     ///         ["info".to_string(), "warn".to_string()],
     ///         FlagWithValue::new("log-level", "l", "A log level.", StringValue)
@@ -1269,6 +1298,10 @@ use core::ops::Range;
 pub struct Span(Vec<usize>);
 
 impl Span {
+    pub const fn empty() -> Self {
+        Span(vec![])
+    }
+
     pub fn from_range(range: Range<usize>) -> Self {
         Self::from(range)
     }
@@ -1291,8 +1324,8 @@ impl From<Range<usize>> for Span {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Value<T> {
-    span: Span,
-    value: T,
+    pub span: Span,
+    pub value: T,
 }
 
 impl<T> Value<T> {
@@ -1415,7 +1448,7 @@ where
 ///
 /// let input = ["hello", "-n", "foo", "-l", "info"];
 /// assert_eq!(
-///     Ok(("foo".to_string(), "info".to_string())),
+///     Ok(Value::new(Span::from_range(1..5), ("foo".to_string(), "info".to_string()))),
 ///     Join::new(
 ///         FlagWithValue::new("name", "n", "A name.", StringValue),
 ///         FlagWithValue::new("log-level", "l", "A given log level setting.", StringValue),
@@ -1423,7 +1456,7 @@ where
 ///     .evaluate(&input[..])
 /// );
 /// assert_eq!(
-///     Ok(("foo".to_string(), "info".to_string())),
+///     Ok(Value::new(Span::from_range(1..5), ("foo".to_string(), "info".to_string()))),
 ///     Flag::expect_string("name", "n", "A name.")
 ///         .join(FlagWithValue::new(
 ///             "log-level",
@@ -1543,7 +1576,7 @@ where
 /// let input = ["hello", "--log-level", "info"];
 ///
 /// assert_eq!(
-///     Ok("foo".to_string()),
+///     Ok(Value::new(Span::from_range(0..0), "foo".to_string())),
 ///     WithDefault::new(
 ///         "foo",
 ///         Optional::new(FlagWithValue::new("name", "n", "A name.", StringValue))
@@ -1552,7 +1585,7 @@ where
 /// );
 ///
 /// assert_eq!(
-///     Ok("foo".to_string()),
+///     Ok(Value::new(Span::from_range(0..0), "foo".to_string())),
 ///     Flag::expect_string("name", "n", "A name.")
 ///         .optional()
 ///         .with_default("foo".to_string())
@@ -1636,20 +1669,20 @@ where
 /// let input = ["hello", "-n", "foo"];
 ///
 /// assert_eq!(
-///     Ok(Some("foo".to_string())),
+///     Ok(Value::new(Span::from_range(1..3), Some("foo".to_string()))),
 ///     Optional::new(FlagWithValue::new("name", "n", "A name.", StringValue)).evaluate(&input[..])
 /// );
 ///
 /// // validate boxed syntax works
 /// assert_eq!(
-///     Ok(Some("foo".to_string())),
+///     Ok(Value::new(Span::from_range(1..3), Some("foo".to_string()))),
 ///     FlagWithValue::new("name", "n", "A name.", StringValue)
 ///         .optional()
 ///         .evaluate(&input[..])
 /// );
 ///
 /// assert_eq!(
-///     Ok(None),
+///     Ok(Value::new(Span::empty(), None)),
 ///     Optional::new(FlagWithValue::new(
 ///         "log-level",
 ///         "l",
@@ -1728,7 +1761,7 @@ where
 /// let input = ["hello", "--log-level", "info"];
 ///
 /// assert_eq!(
-///     Ok("info".to_string()),
+///     Ok(Value::new(Span::from_range(1..3), "info".to_string())),
 ///     Flag::with_choices(
 ///         "log-level", "l", "logging level",
 ///         ["info".to_string(), "warn".to_string()],
@@ -1738,7 +1771,7 @@ where
 /// );
 ///
 /// assert_eq!(
-///     Ok("info".to_string()),
+///     Ok(Value::new(Span::from_range(1..3), "info".to_string())),
 ///     WithChoices::new(
 ///         ["info".to_string(), "warn".to_string()],
 ///         FlagWithValue::new("log-level", "l", "logging level", StringValue)
@@ -1755,7 +1788,7 @@ where
 /// );
 ///
 /// assert_eq!(
-///     Ok("debug".to_string()),
+///     Ok(Value::new(Span::default(), "debug".to_string())),
 ///     WithDefault::new(
 ///         "debug".to_string(),
 ///         Optional::new(WithChoices::new(
@@ -1840,12 +1873,12 @@ where
 /// use scrap::*;
 ///
 /// assert_eq!(
-///    Ok("foo".to_string()),
+///    Ok(Value::new(Span::from_range(1..3), "foo".to_string())),
 ///    ExpectStringValue::new("name", "n", "A name.").evaluate(&["hello", "--name", "foo"][..])
 /// );
 ///
 /// assert_eq!(
-///     Ok("foo".to_string()),
+///     Ok(Value::new(Span::from_range(1..3), "foo".to_string())),
 ///     ExpectStringValue::new("name", "n", "A name.").evaluate(&["hello", "-n", "foo"][..])
 /// );
 /// ```
@@ -1907,22 +1940,22 @@ impl ShortHelpable for ExpectStringValue {
 /// use scrap::*;
 ///
 /// assert_eq!(
-///    Ok(true),
+///    Ok(Value::new(Span::from_range(1..2), true)),
 ///    StoreTrue::new("debug", "d", "Run in debug mode.").evaluate(&["hello", "--debug"][..])
 /// );
 ///
 /// assert_eq!(
-///     Ok(true),
-///     StoreTrue::new("debug", "d", "Run in debug mode.").evaluate(&["hello", "-d"][..])
+///    Ok(Value::new(Span::from_range(1..2), true)),
+///    StoreTrue::new("debug", "d", "Run in debug mode.").evaluate(&["hello", "-d"][..])
 /// );
 ///
 /// assert_eq!(
-///     Ok(false),
-///     WithDefault::new(
-///         false,
-///         Optional::new(StoreTrue::new("debug", "d", "Run in debug mode."))
-///     )
-///     .evaluate(&["hello"][..])
+///    Ok(Value::new(Span::empty(), false)),
+///    WithDefault::new(
+///        false,
+///        Optional::new(StoreTrue::new("debug", "d", "Run in debug mode."))
+///    )
+///    .evaluate(&["hello"][..])
 /// );
 /// ```
 #[deprecated]
@@ -1983,17 +2016,17 @@ impl ShortHelpable for StoreTrue {
 /// use scrap::*;
 ///
 /// assert_eq!(
-///     Ok(false),
+///     Ok(Value::new(Span::from_range(1..2), false)),
 ///     StoreFalse::new("no-wait", "n", "don't wait for a response.").evaluate(&["hello", "--no-wait"][..])
 /// );
 ///
 /// assert_eq!(
-///     Ok(false),
+///     Ok(Value::new(Span::from_range(1..2), false)),
 ///     StoreFalse::new("no-wait", "n", "don't wait for a response.").evaluate(&["hello", "-n"][..])
 /// );
 ///
 /// assert_eq!(
-///     Ok(true),
+///     Ok(Value::new(Span::empty(), true)),
 ///     WithDefault::new(
 ///         true,
 ///         Optional::new(StoreFalse::new("no-wait", "n", "don't wait for a response."))
@@ -2097,13 +2130,13 @@ macro_rules! generate_integer_evaluators {
             }
         }
 
-        /// Represents a String argument
+        /// Represents a Numeric argument
         #[derive(Debug, Clone, Copy)]
         pub struct $value_name;
 
         impl<'a> PositionalArgumentValue<'a, &'a [&'a str], $primitive> for $value_name {
-            fn evaluate_at(&self, input: &'a [&'a str], pos: usize) -> EvaluateResult<'a , $primitive> {
-                self.evaluate(&input[pos..]).map(|v| v.from_offset(pos))
+            fn evaluate_at(&self, input: &'a [&'a str], pos: usize) -> EvaluateResult<'a, $primitive> {
+                self.evaluate(&input[pos..])
             }
         }
 
@@ -2236,12 +2269,12 @@ where
 /// use scrap::*;
 ///
 /// assert_eq!(
-///     Ok("/etc/hostname".to_string()),
+///     Ok(Value::new(Span::from_range(1..3), "/etc/hostname".to_string())),
 ///     ExpectFilePath::new("file", "f", "A filepath to read", true, false, true).evaluate(&["hello", "--file", "/etc/hostname"][..])
 /// );
 ///
 /// assert_eq!(
-///     Ok("/etc/hostname".to_string()),
+///     Ok(Value::new(Span::empty(), "/etc/hostname".to_string())),
 ///     WithDefault::new(
 ///         "/etc/hostname".to_string(),
 ///         Optional::new(ExpectFilePath::new("file", "f", "A filepath to read", true, false, true))
@@ -2421,13 +2454,13 @@ pub trait PositionalArgumentValue<'a, A, B>: Evaluatable<'a, A, B> {
 /// use scrap::*;
 ///
 /// assert_eq!(
-///    Ok("foo".to_string()),
+///    Ok(Value::new(Span::from_range(1..3), "foo".to_string())),
 ///    FlagWithValue::new("name", "n", "A name.", StringValue).evaluate(&["hello", "--name", "foo"][..])
 /// );
 ///
 /// assert_eq!(
-///     Ok("foo".to_string()),
-///     FlagWithValue::new("name", "n", "A name.", StringValue).evaluate(&["hello", "-n", "foo"][..])
+///    Ok(Value::new(Span::from_range(1..3), "foo".to_string())),
+///    FlagWithValue::new("name", "n", "A name.", StringValue).evaluate(&["hello", "-n", "foo"][..])
 /// );
 /// ```
 #[derive(Debug, Clone, Copy)]
@@ -2459,19 +2492,19 @@ impl<'a> TerminalEvaluatable<'a, &'a [&'a str], String> for StringValue {}
 /// use scrap::*;
 ///
 /// assert_eq!(
-///     Ok(false),
+///     Ok(Value::new(Span::from_range(1..2), false)),
 ///     FlagWithValue::new("no-wait", "n", "don't wait for a response.", ValueOnMatch::new(false))
 ///         .evaluate(&["hello", "--no-wait"][..])
 /// );
 ///
 /// assert_eq!(
-///     Ok(false),
+///     Ok(Value::new(Span::from_range(1..2), false)),
 ///     FlagWithValue::new("no-wait", "n", "don't wait for a response.", ValueOnMatch::new(false))
 ///         .evaluate(&["hello", "-n"][..])
 /// );
 ///
 /// assert_eq!(
-///     Ok(true),
+///     Ok(Value::new(Span::empty(), true)),
 ///     WithDefault::new(
 ///         true,
 ///         Optional::new(FlagWithValue::new("no-wait", "n", "don't wait for a response.", ValueOnMatch::new(false)))
@@ -2498,7 +2531,7 @@ impl<'a, V: Clone> PositionalArgumentValue<'a, &'a [&'a str], V> for ValueOnMatc
 
 impl<'a, V: Clone> Evaluatable<'a, &'a [&'a str], V> for ValueOnMatch<V> {
     fn evaluate(&self, _: &'a [&'a str]) -> EvaluateResult<'a, V> {
-        Ok(Value::new(Span::from_range(0..1), self.value.clone()))
+        Ok(Value::new(Span::empty(), self.value.clone()))
     }
 }
 
@@ -2514,13 +2547,13 @@ impl<'a, V: Clone> TerminalEvaluatable<'a, &'a [&'a str], V> for ValueOnMatch<V>
 /// use scrap::*;
 ///
 /// assert_eq!(
-///     Ok("/etc/hostname".to_string()),
+///     Ok(Value::new(Span::from_range(1..3), "/etc/hostname".to_string())),
 ///     FlagWithValue::new("file", "f", "A filepath to read", FileValue::new(true, false, true))
 ///         .evaluate(&["hello", "--file", "/etc/hostname"][..])
 /// );
 ///
 /// assert_eq!(
-///     Ok("/etc/hostname".to_string()),
+///     Ok(Value::new(Span::empty(), "/etc/hostname".to_string())),
 ///     WithDefault::new(
 ///         "/etc/hostname".to_string(),
 ///         Optional::new(FlagWithValue::new("file", "f", "A filepath to read", FileValue::new(true, false, true)))

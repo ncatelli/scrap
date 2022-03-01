@@ -21,10 +21,7 @@ fn cmd_should_dispatch_a_valid_handler() {
     assert_eq!(
         Ok(()),
         cmd.evaluate(&["test", "-l", "info"][..])
-            .map(|flag_values| {
-                let inner = flag_values.value;
-                cmd.dispatch(inner);
-            })
+            .map(|value| cmd.dispatch(value))
     );
 }
 

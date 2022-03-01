@@ -50,9 +50,6 @@ fn main() {
     let _ = cmd
         .evaluate(&args[..])
         .map_err(|e| e.to_string())
-        .map(|flag_values| {
-            let inner = flag_values.unwrap();
-            cmd.dispatch_with_helpstring(inner);
-        })
+        .map(|flag_values| cmd.dispatch_with_helpstring(flag_values))
         .map_err(|e| println!("{}", e));
 }

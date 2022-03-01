@@ -33,10 +33,9 @@ fn main() {
         );
 
     let help_string = cmd_group.help();
-    let eval_res = cmd_group.evaluate(&args[..]).map(|flag_values| {
-        let inner = flag_values.unwrap();
-        cmd_group.dispatch(inner);
-    });
+    let eval_res = cmd_group
+        .evaluate(&args[..])
+        .map(|flag_values| cmd_group.dispatch(flag_values));
 
     match eval_res {
         Ok(_) => (),
