@@ -306,6 +306,15 @@ where
     }
 }
 
+impl<'a, C, A, B, R> DispatchableWithArgs<A, B, R> for CmdGroup<C>
+where
+    C: Evaluatable<'a, A, B> + DispatchableWithArgs<A, B, R>,
+{
+    fn dispatch_with_args(self, flag_values: Value<B>, args: Vec<String>) -> R {
+        self.commands.dispatch_with_args(flag_values, args)
+    }
+}
+
 impl<'a, C, B, R> DispatchableWithHelpString<B, R> for CmdGroup<C>
 where
     Self: Helpable<Output = String>,
@@ -434,6 +443,22 @@ where
         match values {
             Either::Left(b) => self.left.dispatch(Value::new(span, b)),
             Either::Right(c) => self.right.dispatch(Value::new(span, c)),
+        }
+    }
+}
+
+impl<'a, C1, C2, A, B, C, R> DispatchableWithArgs<A, Either<B, C>, R> for OneOf<C1, C2>
+where
+    C1: Evaluatable<'a, A, B> + DispatchableWithArgs<A, B, R>,
+    C2: Evaluatable<'a, A, C> + DispatchableWithArgs<A, C, R>,
+{
+    fn dispatch_with_args(self, flag_values: Value<Either<B, C>>, args: Vec<String>) -> R {
+        let span = flag_values.span;
+        let values = flag_values.value;
+
+        match values {
+            Either::Left(b) => self.left.dispatch_with_args(Value::new(span, b), args),
+            Either::Right(c) => self.right.dispatch_with_args(Value::new(span, c), args),
         }
     }
 }
@@ -679,6 +704,32 @@ impl<T, H> Cmd<T, H> {
     }
 
     /// Returns Cmd with the handler set to the provided function in the format
+    /// of (evaluator returns).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use scrap::prelude::v1::*;
+    /// use scrap::*;
+    ///
+    /// Cmd::new("test").with_handler(|_| ());
+    /// ```
+    pub fn with_args_handler<'a, A, B, NH, R>(self, handler: NH) -> Cmd<T, NH>
+    where
+        T: Evaluatable<'a, A, B>,
+        NH: Fn(B, Vec<String>) -> R,
+    {
+        Cmd {
+            name: self.name,
+            description: self.description,
+            author: self.author,
+            version: self.version,
+            flags: self.flags,
+            handler,
+        }
+    }
+
+    /// Returns Cmd with the handler set to the provided function in the format
     /// of (helpstring, evaluator returns).
     ///
     /// # Examples
@@ -803,6 +854,17 @@ where
     }
 }
 
+impl<'a, T, H, A, B, R> DispatchableWithArgs<A, B, R> for Cmd<T, H>
+where
+    T: Evaluatable<'a, A, B>,
+    H: Fn(B, Vec<String>) -> R,
+{
+    fn dispatch_with_args(self, flag_values: Value<B>, args: Vec<String>) -> R {
+        let inner = flag_values.unwrap();
+        (self.handler)(inner, args)
+    }
+}
+
 impl<'a, T, H, B, R> DispatchableWithHelpString<B, R> for Cmd<T, H>
 where
     Self: Helpable<Output = String>,
@@ -823,6 +885,11 @@ where
 /// Defines behaviors for types that can dispatch an evaluator to a function.
 pub trait Dispatchable<A, B, R> {
     fn dispatch(self, flag_values: Value<B>) -> R;
+}
+
+/// Defines behaviors for types that can dispatch an evaluator to a function.
+pub trait DispatchableWithArgs<A, B, R> {
+    fn dispatch_with_args(self, flag_values: Value<B>, args: Vec<String>) -> R;
 }
 
 /// Defines behaviors for types that can dispatch an evaluator to a function
@@ -2623,3 +2690,39 @@ impl<'a> Evaluatable<'a, &'a [&'a str], String> for FileValue {
 }
 
 impl<'a> TerminalEvaluatable<'a, &'a [&'a str], String> for FileValue {}
+
+/// Returns all unused args from an evaluated source.
+///
+/// # Example
+///
+/// ```
+/// use scrap::prelude::v1::*;
+/// use scrap::*;
+///
+/// let input = ["hello", "a", "-n", "foo", "b", "c", "1"];
+///
+/// let evaluated_res = Cmd::new("hello")
+///     .with_flag(FlagWithValue::new("name", "n", "A name.", StringValue))
+///     .evaluate(&input[..]);
+///
+/// let val_with_args = evaluated_res.map(|flags| {
+///     let args = return_unused_args(&input[..], &flags.span);
+///     (flags, args)
+/// });
+///
+/// let expected_span = Span::from_range(0..1).join(Span::from_range(2..4));
+/// let expected_args = vec!["a", "b", "c", "1"].iter().map(|v| v.to_string()).collect();
+/// assert_eq!(
+///     Ok((Value::new(expected_span, "foo".to_string()), expected_args)),
+///     val_with_args
+/// );
+/// ```
+pub fn return_unused_args<'a>(input: &'a [&'a str], matched_span: &Span) -> Vec<String> {
+    let span = &matched_span.0;
+    input
+        .iter()
+        .enumerate()
+        .filter(|(offset, _)| !span.contains(offset))
+        .map(|(_, v)| v.to_string())
+        .collect()
+}

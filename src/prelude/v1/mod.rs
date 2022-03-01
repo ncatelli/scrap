@@ -8,6 +8,10 @@ pub use crate::Defaultable;
 pub use crate::Dispatchable;
 
 /// Defines behaviors for types that can dispatch an evaluator to a function
+/// with passed arguments.
+pub use crate::DispatchableWithArgs;
+
+/// Defines behaviors for types that can dispatch an evaluator to a function
 /// with additional help documentation.
 pub use crate::DispatchableWithHelpString;
 
