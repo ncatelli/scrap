@@ -888,6 +888,7 @@ pub trait Dispatchable<A, B, R> {
 }
 
 /// Defines behaviors for types that can dispatch an evaluator to a function.
+/// with an optional set of unmatched arguments.
 pub trait DispatchableWithArgs<A, B, R> {
     fn dispatch_with_args(self, flag_values: Value<B>, args: Vec<String>) -> R;
 }
