@@ -57,6 +57,6 @@ fn main() {
             let args = scrap::return_unused_args(&args[..], &flag_values.span);
             (flag_values, args)
         })
-        .map(|(flag_values, args)| cmd.dispatch_with_args(flag_values, args))
+        .map(|(flag_values, args)| cmd.dispatch_with_args(args, flag_values))
         .map_err(|e| println!("{}", e));
 }

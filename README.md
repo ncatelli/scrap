@@ -19,6 +19,8 @@ A minimal command-line utility framework built with zero external dependencies. 
 			- [Helpable](#helpable)
 			- [ShortHelpable](#shorthelpable)
 			- [Dispatchable](#dispatchable)
+            - [DispatchableWithArgs](#dispatchablewithargs)
+            - [DispatchableWithHelpString](#dispatchablewithhelpstring)
 			- [Putting it all together](#putting-it-all-together)
 	- [Testing](#testing)
 		- [Locally](#locally)
@@ -199,7 +201,31 @@ impl<H> Helpable for Cmd<(), H> {
 `ShortHelpable`, much like `Helpable` provides the behavior for generating short-help strings. This can be thought of as the consituent parts of a larger help string.
 
 #### Dispatchable
-Dispatchable provides a method, `dispatch` who's signature is equivalent to the output of all Flag `Evaluatable`s.
+Dispatchable provides a method, `dispatch` whose signature is equivalent to the output of all Flag `Evaluatable`s.
+
+```rust
+impl<'a, E1, E2, A, B, C> Evaluatable<'a, A, (B, C)> for Join<E1, E2>
+where
+    A: Copy + std::borrow::Borrow<A> + 'a,
+    E1: Evaluatable<'a, A, B>,
+    E2: Evaluatable<'a, A, C>,
+{
+    fn evaluate(&self, input: A) -> EvaluateResult<'a, (B, C)> {
+        self.evaluator1
+            .evaluate(input)
+            .map_err(|e| e)
+            .and_then(|e1_res| match self.evaluator2.evaluate(input) {
+                Ok(e2_res) => Ok((e1_res, e2_res)),
+                Err(e) => Err(e),
+            })
+    }
+}
+```
+
+If given the above `Evaluatable` A cli's implemented dispatchable would take an `Fn((B, C))` and yield whatever return type is defined for the closure.
+
+#### DispatchableWithArgs
+DispatchableWithArgs provides a method, `dispatch_with_args` whose signature is equivalent to the output of all Flag `Evaluatable`s and a `Vec<Value<String>>` of all unmatched arguments.
 
 To illustrate this behavior, I will reference the above `Join`.
 
@@ -222,7 +248,33 @@ where
 }
 ```
 
-If given the above `Evaluatable` A cli's implemented dispatchable would take an `Fn((B, C))` and yield whatever return type is defined for the closure.
+If given the above `Evaluatable` A cli's implemented dispatchable would take an `Fn(Vec<Value<String>>, (B, C))` and yield whatever return type is defined for the closure.
+
+#### DispatchableWithHelpString
+DispatchableWithHelpString provides a method, `dispatch_with_help_string` and `dispatch_with_supplied_helpstring` whose signature is equivalent to the output of all Flag `Evaluatable`s and a preceeding String.
+
+To illustrate this behavior, I will reference the above `Join`.
+
+```rust
+impl<'a, E1, E2, A, B, C> Evaluatable<'a, A, (B, C)> for Join<E1, E2>
+where
+    A: Copy + std::borrow::Borrow<A> + 'a,
+    E1: Evaluatable<'a, A, B>,
+    E2: Evaluatable<'a, A, C>,
+{
+    fn evaluate(&self, input: A) -> EvaluateResult<'a, (B, C)> {
+        self.evaluator1
+            .evaluate(input)
+            .map_err(|e| e)
+            .and_then(|e1_res| match self.evaluator2.evaluate(input) {
+                Ok(e2_res) => Ok((e1_res, e2_res)),
+                Err(e) => Err(e),
+            })
+    }
+}
+```
+
+If given the above `Evaluatable` A cli's implemented dispatchable would take an `Fn(String, (B, C))` and yield whatever return type is defined for the closure.
 
 #### Putting it all together
 To illustrate how easy it is to write custom `Evaluator` implementations, I will show an example of a `WithOpen` evaluator below, which takes an evaluator that yields a type marked `Openable` and attempts to open the resulting value as a file. 

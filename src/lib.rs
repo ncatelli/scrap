@@ -310,8 +310,8 @@ impl<'a, C, A, B, R> DispatchableWithArgs<A, B, R> for CmdGroup<C>
 where
     C: Evaluatable<'a, A, B> + DispatchableWithArgs<A, B, R>,
 {
-    fn dispatch_with_args(self, flag_values: Value<B>, args: Vec<Value<String>>) -> R {
-        self.commands.dispatch_with_args(flag_values, args)
+    fn dispatch_with_args(self, args: Vec<Value<String>>, flag_values: Value<B>) -> R {
+        self.commands.dispatch_with_args(args, flag_values)
     }
 }
 
@@ -452,13 +452,13 @@ where
     C1: Evaluatable<'a, A, B> + DispatchableWithArgs<A, B, R>,
     C2: Evaluatable<'a, A, C> + DispatchableWithArgs<A, C, R>,
 {
-    fn dispatch_with_args(self, flag_values: Value<Either<B, C>>, args: Vec<Value<String>>) -> R {
+    fn dispatch_with_args(self, args: Vec<Value<String>>, flag_values: Value<Either<B, C>>) -> R {
         let span = flag_values.span;
         let values = flag_values.value;
 
         match values {
-            Either::Left(b) => self.left.dispatch_with_args(Value::new(span, b), args),
-            Either::Right(c) => self.right.dispatch_with_args(Value::new(span, c), args),
+            Either::Left(b) => self.left.dispatch_with_args(args, Value::new(span, b)),
+            Either::Right(c) => self.right.dispatch_with_args(args, Value::new(span, c)),
         }
     }
 }
@@ -859,7 +859,7 @@ where
     T: Evaluatable<'a, A, B>,
     H: Fn(B, Vec<Value<String>>) -> R,
 {
-    fn dispatch_with_args(self, flag_values: Value<B>, args: Vec<Value<String>>) -> R {
+    fn dispatch_with_args(self, args: Vec<Value<String>>, flag_values: Value<B>) -> R {
         let inner = flag_values.unwrap();
         (self.handler)(inner, args)
     }
@@ -890,7 +890,7 @@ pub trait Dispatchable<A, B, R> {
 /// Defines behaviors for types that can dispatch an evaluator to a function.
 /// with an optional set of unmatched arguments.
 pub trait DispatchableWithArgs<A, B, R> {
-    fn dispatch_with_args(self, flag_values: Value<B>, args: Vec<Value<String>>) -> R;
+    fn dispatch_with_args(self, args: Vec<Value<String>>, flag_values: Value<B>) -> R;
 }
 
 /// Defines behaviors for types that can dispatch an evaluator to a function
