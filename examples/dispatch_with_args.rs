@@ -36,7 +36,7 @@ fn main() {
         .with_flag(help)
         .with_flag(direction)
         // Finally a handler is defined with its signature being a product of
-        // the cli's defined flags and a placeholder for unmatched arguments
+        // the cli's defined flags and a placeholder for unmatched arguments.
         .with_args_handler(|(help_flag_set, optional_direction), args| {
             match (help_flag_set, optional_direction) {
                 (false, Some(direction)) => {
