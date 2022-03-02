@@ -1399,7 +1399,7 @@ impl Span {
         Self::from(range)
     }
 
-    /// Joins two spans together.
+    /// Joins two Spans together.
     ///
     /// # Examples
     ///
@@ -1409,6 +1409,7 @@ impl Span {
     ///
     /// let span_1 = Span::from_range(0..2);
     /// let span_2 = Span::from_range(2..4);
+    ///
     /// assert_eq!(Span::new(vec![0, 1, 2, 3]), span_1.join(span_2));
     /// ```
     pub fn join(mut self, other: Span) -> Self {
@@ -1427,6 +1428,8 @@ impl From<Range<usize>> for Span {
     }
 }
 
+/// Value wraps a matched parse, containing contextual data, like it's
+/// argument position.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Value<T> {
     pub span: Span,
@@ -1438,6 +1441,19 @@ impl<T> Value<T> {
         Self { span, value }
     }
 
+    /// Adjusts the spans of a given value to align with an offset.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use scrap::prelude::v1::*;
+    /// use scrap::*;
+    ///
+    /// let base = Value::new(Span::from_range(0..1), ());
+    /// let adjusted = base.from_offset(2);
+    ///
+    /// assert_eq!(Value::new(Span::from_range(2..3), ()), adjusted);
+    /// ```
     pub fn from_offset(self, offset: usize) -> Self {
         let adjusted_span_inner = self.span.0.iter().map(|v| *v + offset).collect();
         let span = Span(adjusted_span_inner);
@@ -1448,14 +1464,33 @@ impl<T> Value<T> {
         }
     }
 
+    /// Unwraps the enclosed inner value from the Value type.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use scrap::prelude::v1::*;
+    /// use scrap::*;
+    ///
+    /// assert_eq!((), Value::new(Span::empty(), ()).unwrap());
+    /// ```
     pub fn unwrap(self) -> T {
         self.value
     }
 
-    pub fn some(self) -> Option<T> {
-        Some(self.value)
-    }
-
+    /// Allows the mapping of the enclosed value to a new value.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use scrap::prelude::v1::*;
+    /// use scrap::*;
+    ///
+    /// let base = Value::new(Span::empty(), 1);
+    /// let adjusted = base.map(|inner| inner + 1);
+    ///
+    /// assert_eq!(2, adjusted.unwrap());
+    /// ```
     pub fn map<V, F>(self, map_fn: F) -> Value<V>
     where
         F: FnOnce(T) -> V,
@@ -2729,7 +2764,7 @@ impl<'a> Evaluatable<'a, &'a [&'a str], String> for FileValue {
 
 impl<'a> TerminalEvaluatable<'a, &'a [&'a str], String> for FileValue {}
 
-/// Returns all unused args from an evaluated source.
+/// Returns all unused args from an input source as identified by a given Span.
 ///
 /// # Example
 ///
