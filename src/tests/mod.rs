@@ -21,7 +21,7 @@ fn cmd_should_dispatch_a_valid_handler() {
     assert_eq!(
         Ok(()),
         cmd.evaluate(&["test", "-l", "info"][..])
-            .map(|flag_values| cmd.dispatch(flag_values))
+            .map(|value| cmd.dispatch(value))
     );
 }
 

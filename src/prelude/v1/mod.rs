@@ -1,8 +1,15 @@
+/// Provides a wrapper around spanned matching argument values.
+pub use crate::Value;
+
 /// Defines behaviors for traits that can default to a if not specified value.
 pub use crate::Defaultable;
 
 /// Defines behaviors for types that can dispatch an evaluator to a function.
 pub use crate::Dispatchable;
+
+/// Defines behaviors for types that can dispatch an evaluator to a function
+/// with passed arguments.
+pub use crate::DispatchableWithArgs;
 
 /// Defines behaviors for types that can dispatch an evaluator to a function
 /// with additional help documentation.

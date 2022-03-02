@@ -19,6 +19,8 @@ A minimal command-line utility framework built with zero external dependencies. 
 			- [Helpable](#helpable)
 			- [ShortHelpable](#shorthelpable)
 			- [Dispatchable](#dispatchable)
+            - [DispatchableWithArgs](#dispatchablewithargs)
+            - [DispatchableWithHelpString](#dispatchablewithhelpstring)
 			- [Putting it all together](#putting-it-all-together)
 	- [Testing](#testing)
 		- [Locally](#locally)
@@ -57,7 +59,6 @@ fn main() {
 
     // The `Flag` type defines helpers for generating various common flag
     // evaluators.
-    
     // Shown below, the `help` flag represents common boolean flag with default
     // a default value.
     let help = scrap::Flag::store_true("help", "h", "output help information.")
@@ -79,14 +80,14 @@ fn main() {
     );
 
     // `Cmd` defines the named command, combining metadata without our above defined command.
-    let cmd = scrap::Cmd::new("minimal")
+    let cmd = scrap::Cmd::new("basic")
         .description("A minimal example cli.")
         .author("John Doe <jdoe@example.com>")
         .version("1.2.3")
         .with_flag(help)
         .with_flag(direction)
         // Finally a handler is defined with its signature being a product of
-        //the cli's defined flags.
+        // the cli's defined flags.
         .with_handler(|(_, direction)| println!("You chose {}.", direction));
 
     // The help method generates a help command based on the output rendered
@@ -96,17 +97,16 @@ fn main() {
     // Evaluate attempts to parse the input, evaluating all commands and flags
     // into concrete types which can be passed to `dispatch`, the defined
     // handler.
-    let res = cmd
-        .evaluate(&args[..])
-        .map_err(|e| e.to_string())
-        .and_then(|(help, direction)| {
-            if help {
-                Err("output help".to_string())
-            } else {
-                cmd.dispatch((help, direction));
-                Ok(())
-            }
-        });
+    let res =
+        cmd.evaluate(&args[..])
+            .map_err(|e| e.to_string())
+            .and_then(|Value { span, value }| match value {
+                (help, direction) if !help => {
+                    cmd.dispatch(Value::new(span, (help, direction)));
+                    Ok(())
+                }
+                _ => Err("output help".to_string()),
+            });
 
     match res {
         Ok(_) => (),
@@ -199,7 +199,31 @@ impl<H> Helpable for Cmd<(), H> {
 `ShortHelpable`, much like `Helpable` provides the behavior for generating short-help strings. This can be thought of as the consituent parts of a larger help string.
 
 #### Dispatchable
-Dispatchable provides a method, `dispatch` who's signature is equivalent to the output of all Flag `Evaluatable`s.
+Dispatchable provides a method, `dispatch` whose signature is equivalent to the output of all Flag `Evaluatable`s.
+
+```rust
+impl<'a, E1, E2, A, B, C> Evaluatable<'a, A, (B, C)> for Join<E1, E2>
+where
+    A: Copy + std::borrow::Borrow<A> + 'a,
+    E1: Evaluatable<'a, A, B>,
+    E2: Evaluatable<'a, A, C>,
+{
+    fn evaluate(&self, input: A) -> EvaluateResult<'a, (B, C)> {
+        self.evaluator1
+            .evaluate(input)
+            .map_err(|e| e)
+            .and_then(|e1_res| match self.evaluator2.evaluate(input) {
+                Ok(e2_res) => Ok((e1_res, e2_res)),
+                Err(e) => Err(e),
+            })
+    }
+}
+```
+
+If given the above `Evaluatable` A cli's implemented dispatchable would take an `Fn((B, C))` and yield whatever return type is defined for the closure.
+
+#### DispatchableWithArgs
+DispatchableWithArgs provides a method, `dispatch_with_args` whose signature is equivalent to the output of all Flag `Evaluatable`s and a `Vec<Value<String>>` of all unmatched arguments.
 
 To illustrate this behavior, I will reference the above `Join`.
 
@@ -222,7 +246,33 @@ where
 }
 ```
 
-If given the above `Evaluatable` A cli's implemented dispatchable would take an `Fn((B, C))` and yield whatever return type is defined for the closure.
+If given the above `Evaluatable` A cli's implemented dispatchable would take an `Fn(Vec<Value<String>>, (B, C))` and yield whatever return type is defined for the closure.
+
+#### DispatchableWithHelpString
+DispatchableWithHelpString provides a method, `dispatch_with_help_string` and `dispatch_with_supplied_helpstring` whose signature is equivalent to the output of all Flag `Evaluatable`s and a preceeding String.
+
+To illustrate this behavior, I will reference the above `Join`.
+
+```rust
+impl<'a, E1, E2, A, B, C> Evaluatable<'a, A, (B, C)> for Join<E1, E2>
+where
+    A: Copy + std::borrow::Borrow<A> + 'a,
+    E1: Evaluatable<'a, A, B>,
+    E2: Evaluatable<'a, A, C>,
+{
+    fn evaluate(&self, input: A) -> EvaluateResult<'a, (B, C)> {
+        self.evaluator1
+            .evaluate(input)
+            .map_err(|e| e)
+            .and_then(|e1_res| match self.evaluator2.evaluate(input) {
+                Ok(e2_res) => Ok((e1_res, e2_res)),
+                Err(e) => Err(e),
+            })
+    }
+}
+```
+
+If given the above `Evaluatable` A cli's implemented dispatchable would take an `Fn(String, (B, C))` and yield whatever return type is defined for the closure.
 
 #### Putting it all together
 To illustrate how easy it is to write custom `Evaluator` implementations, I will show an example of a `WithOpen` evaluator below, which takes an evaluator that yields a type marked `Openable` and attempts to open the resulting value as a file. 

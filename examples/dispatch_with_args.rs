@@ -29,18 +29,21 @@ fn main() {
     .optional();
 
     // `Cmd` defines the named command, combining metadata without our above defined command.
-    let cmd = scrap::Cmd::new("dispatch_with_helpstring")
+    let cmd = scrap::Cmd::new("dispatch_with_args")
         .description("A minimal example cli.")
         .author("John Doe <jdoe@example.com>")
         .version("1.2.3")
         .with_flag(help)
         .with_flag(direction)
         // Finally a handler is defined with its signature being a product of
-        // the cli's helpstring and defined flags.
-        .with_helpstring_handler(|help_string, (help_flag_set, optional_direction)| {
+        // the cli's defined flags and a placeholder for unmatched arguments.
+        .with_args_handler(|(help_flag_set, optional_direction), args| {
             match (help_flag_set, optional_direction) {
-                (false, Some(direction)) => println!("You chose {}.", direction),
-                _ => println!("{}", help_string),
+                (false, Some(direction)) => {
+                    let arg_values: Vec<_> = args.into_iter().map(|a| a.unwrap()).collect();
+                    println!("You chose {}.\nWith the args {:?}.", direction, arg_values)
+                }
+                _ => println!("error"),
             }
         });
 
@@ -50,6 +53,10 @@ fn main() {
     let _ = cmd
         .evaluate(&args[..])
         .map_err(|e| e.to_string())
-        .map(|flag_values| cmd.dispatch_with_helpstring(flag_values))
+        .map(|flag_values| {
+            let args = scrap::return_unused_args(&args[..], &flag_values.span);
+            (flag_values, args)
+        })
+        .map(|(flag_values, args)| cmd.dispatch_with_args(args, flag_values))
         .map_err(|e| println!("{}", e));
 }

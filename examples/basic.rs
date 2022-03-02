@@ -45,17 +45,16 @@ fn main() {
     // Evaluate attempts to parse the input, evaluating all commands and flags
     // into concrete types which can be passed to `dispatch`, the defined
     // handler.
-    let res = cmd
-        .evaluate(&args[..])
-        .map_err(|e| e.to_string())
-        .and_then(|(help, direction)| {
-            if help {
-                Err("output help".to_string())
-            } else {
-                cmd.dispatch((help, direction));
-                Ok(())
-            }
-        });
+    let res =
+        cmd.evaluate(&args[..])
+            .map_err(|e| e.to_string())
+            .and_then(|Value { span, value }| match value {
+                (help, direction) if !help => {
+                    cmd.dispatch(Value::new(span, (help, direction)));
+                    Ok(())
+                }
+                _ => Err("output help".to_string()),
+            });
 
     match res {
         Ok(_) => (),
