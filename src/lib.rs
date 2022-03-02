@@ -1362,18 +1362,55 @@ impl std::fmt::Display for FlagHelpContext {
 
 use core::ops::Range;
 
+/// Span provides tracking of matched positions in an argument array.
 #[derive(Debug, Default, PartialEq, Clone)]
 pub struct Span(Vec<usize>);
 
 impl Span {
+    pub fn new(matches: Vec<usize>) -> Self {
+        Self(matches)
+    }
+
+    /// Returns an empty span.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use scrap::prelude::v1::*;
+    /// use scrap::*;
+    ///
+    /// assert_eq!(Span::new(vec![]), Span::empty());
+    /// ```
     pub const fn empty() -> Self {
         Span(vec![])
     }
 
+    /// Generates a Span from a given range.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use scrap::prelude::v1::*;
+    /// use scrap::*;
+    ///
+    /// assert_eq!(Span::new(vec![0, 1, 2]), Span::from_range(0..3));
+    /// ```
     pub fn from_range(range: Range<usize>) -> Self {
         Self::from(range)
     }
 
+    /// Joins two spans together.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use scrap::prelude::v1::*;
+    /// use scrap::*;
+    ///
+    /// let span_1 = Span::from_range(0..2);
+    /// let span_2 = Span::from_range(2..4);
+    /// assert_eq!(Span::new(vec![0, 1, 2, 3]), span_1.join(span_2));
+    /// ```
     pub fn join(mut self, other: Span) -> Self {
         for v in other.0 {
             self.0.push(v)
