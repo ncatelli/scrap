@@ -37,7 +37,7 @@ fn main() {
         .with_flag(direction)
         // Finally a handler is defined with its signature being a product of
         // the cli's defined flags and a placeholder for unmatched arguments.
-        .with_args_handler(|(help_flag_set, optional_direction), args| {
+        .with_args_handler(|args, (help_flag_set, optional_direction)| {
             match (help_flag_set, optional_direction) {
                 (false, Some(direction)) => {
                     let arg_values: Vec<_> = args.into_iter().map(|a| a.unwrap()).collect();
@@ -55,8 +55,8 @@ fn main() {
         .map_err(|e| e.to_string())
         .map(|flag_values| {
             let args = scrap::return_unused_args(&args[..], &flag_values.span);
-            (flag_values, args)
+            (args, flag_values)
         })
-        .map(|(flag_values, args)| cmd.dispatch_with_args(args, flag_values))
+        .map(|(args, flag_values)| cmd.dispatch_with_args(args, flag_values))
         .map_err(|e| println!("{}", e));
 }

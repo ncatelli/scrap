@@ -310,7 +310,7 @@ impl<'a, C, A, B, R> DispatchableWithArgs<A, B, R> for CmdGroup<C>
 where
     C: Evaluatable<'a, A, B> + DispatchableWithArgs<A, B, R>,
 {
-    fn dispatch_with_args(self, args: Vec<Value<String>>, flag_values: Value<B>) -> R {
+    fn dispatch_with_args(self, args: StringArgs, flag_values: Value<B>) -> R {
         self.commands.dispatch_with_args(args, flag_values)
     }
 }
@@ -452,7 +452,7 @@ where
     C1: Evaluatable<'a, A, B> + DispatchableWithArgs<A, B, R>,
     C2: Evaluatable<'a, A, C> + DispatchableWithArgs<A, C, R>,
 {
-    fn dispatch_with_args(self, args: Vec<Value<String>>, flag_values: Value<Either<B, C>>) -> R {
+    fn dispatch_with_args(self, args: StringArgs, flag_values: Value<Either<B, C>>) -> R {
         let span = flag_values.span;
         let values = flag_values.value;
 
@@ -704,7 +704,7 @@ impl<T, H> Cmd<T, H> {
     }
 
     /// Returns Cmd with the handler set to the provided function in the format
-    /// of `Fn(evaluator return, Vec<String>) -> R`.
+    /// of `Fn(StringArgs, evaluator return) -> R`.
     ///
     /// # Examples
     ///
@@ -712,12 +712,12 @@ impl<T, H> Cmd<T, H> {
     /// use scrap::prelude::v1::*;
     /// use scrap::*;
     ///
-    /// Cmd::new("test").with_args_handler(|(), _args| ());
+    /// Cmd::new("test").with_args_handler(|_args, ()| ());
     /// ```
     pub fn with_args_handler<'a, A, B, NH, R>(self, handler: NH) -> Cmd<T, NH>
     where
         T: Evaluatable<'a, A, B>,
-        NH: Fn(B, Vec<Value<String>>) -> R,
+        NH: Fn(StringArgs, B) -> R,
     {
         Cmd {
             name: self.name,
@@ -857,11 +857,11 @@ where
 impl<'a, T, H, A, B, R> DispatchableWithArgs<A, B, R> for Cmd<T, H>
 where
     T: Evaluatable<'a, A, B>,
-    H: Fn(B, Vec<Value<String>>) -> R,
+    H: Fn(StringArgs, B) -> R,
 {
-    fn dispatch_with_args(self, args: Vec<Value<String>>, flag_values: Value<B>) -> R {
+    fn dispatch_with_args(self, args: StringArgs, flag_values: Value<B>) -> R {
         let inner = flag_values.unwrap();
-        (self.handler)(inner, args)
+        (self.handler)(args, inner)
     }
 }
 
@@ -890,7 +890,7 @@ pub trait Dispatchable<A, B, R> {
 /// Defines behaviors for types that can dispatch an evaluator to a function.
 /// with an optional set of unmatched arguments.
 pub trait DispatchableWithArgs<A, B, R> {
-    fn dispatch_with_args(self, args: Vec<Value<String>>, flag_values: Value<B>) -> R;
+    fn dispatch_with_args(self, args: StringArgs, flag_values: Value<B>) -> R;
 }
 
 /// Defines behaviors for types that can dispatch an evaluator to a function
@@ -1359,6 +1359,9 @@ impl std::fmt::Display for FlagHelpContext {
         }
     }
 }
+
+/// Represents a vector of spanning arguments.
+pub type StringArgs = Vec<Value<String>>;
 
 use core::ops::Range;
 
@@ -2794,7 +2797,7 @@ impl<'a> TerminalEvaluatable<'a, &'a [&'a str], String> for FileValue {}
 ///     val_with_args
 /// );
 /// ```
-pub fn return_unused_args<'a>(input: &'a [&'a str], matched_span: &Span) -> Vec<Value<String>> {
+pub fn return_unused_args<'a>(input: &'a [&'a str], matched_span: &Span) -> StringArgs {
     let span = &matched_span.0;
     input
         .iter()
