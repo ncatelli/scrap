@@ -704,7 +704,7 @@ impl<T, H> Cmd<T, H> {
     }
 
     /// Returns Cmd with the handler set to the provided function in the format
-    /// of `Fn(evaluator return, Vec<String>) -> R`.
+    /// of `Fn(Vec<Value<String>>, evaluator return) -> R`.
     ///
     /// # Examples
     ///
@@ -712,12 +712,12 @@ impl<T, H> Cmd<T, H> {
     /// use scrap::prelude::v1::*;
     /// use scrap::*;
     ///
-    /// Cmd::new("test").with_args_handler(|(), _args| ());
+    /// Cmd::new("test").with_args_handler(|_args, ()| ());
     /// ```
     pub fn with_args_handler<'a, A, B, NH, R>(self, handler: NH) -> Cmd<T, NH>
     where
         T: Evaluatable<'a, A, B>,
-        NH: Fn(B, Vec<Value<String>>) -> R,
+        NH: Fn(Vec<Value<String>>, B) -> R,
     {
         Cmd {
             name: self.name,
@@ -857,11 +857,11 @@ where
 impl<'a, T, H, A, B, R> DispatchableWithArgs<A, B, R> for Cmd<T, H>
 where
     T: Evaluatable<'a, A, B>,
-    H: Fn(B, Vec<Value<String>>) -> R,
+    H: Fn(Vec<Value<String>>, B) -> R,
 {
     fn dispatch_with_args(self, args: Vec<Value<String>>, flag_values: Value<B>) -> R {
         let inner = flag_values.unwrap();
-        (self.handler)(inner, args)
+        (self.handler)(args, inner)
     }
 }
 
