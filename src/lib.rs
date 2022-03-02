@@ -678,7 +678,7 @@ impl<T, H> Cmd<T, H> {
     }
 
     /// Returns Cmd with the handler set to the provided function in the format
-    /// of (evaluator returns).
+    /// of `Fn(evaluator return) -> R`.
     ///
     /// # Examples
     ///
@@ -704,7 +704,7 @@ impl<T, H> Cmd<T, H> {
     }
 
     /// Returns Cmd with the handler set to the provided function in the format
-    /// of (evaluator returns).
+    /// of `Fn(evaluator return, Vec<String>) -> R`.
     ///
     /// # Examples
     ///
@@ -712,7 +712,7 @@ impl<T, H> Cmd<T, H> {
     /// use scrap::prelude::v1::*;
     /// use scrap::*;
     ///
-    /// Cmd::new("test").with_handler(|_| ());
+    /// Cmd::new("test").with_args_handler(|(), _args| ());
     /// ```
     pub fn with_args_handler<'a, A, B, NH, R>(self, handler: NH) -> Cmd<T, NH>
     where
@@ -730,7 +730,7 @@ impl<T, H> Cmd<T, H> {
     }
 
     /// Returns Cmd with the handler set to the provided function in the format
-    /// of (helpstring, evaluator returns).
+    /// of `Fn(helpstring, evaluator return) -> R`.
     ///
     /// # Examples
     ///
@@ -738,7 +738,7 @@ impl<T, H> Cmd<T, H> {
     /// use scrap::prelude::v1::*;
     /// use scrap::*;
     ///
-    /// Cmd::new("test").with_helpstring_handler(|_, _| ());
+    /// Cmd::new("test").with_helpstring_handler(|_helpstring, ()| ());
     /// ```
     pub fn with_helpstring_handler<'a, A, B, NH, R>(self, handler: NH) -> Cmd<T, NH>
     where
