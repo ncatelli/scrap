@@ -40,7 +40,8 @@ fn main() {
         .with_args_handler(|(help_flag_set, optional_direction), args| {
             match (help_flag_set, optional_direction) {
                 (false, Some(direction)) => {
-                    println!("You chose {}.\nWith the args {:?}.", direction, args)
+                    let arg_values: Vec<_> = args.into_iter().map(|a| a.unwrap()).collect();
+                    println!("You chose {}.\nWith the args {:?}.", direction, arg_values)
                 }
                 _ => println!("error"),
             }
