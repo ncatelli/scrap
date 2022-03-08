@@ -36,7 +36,7 @@ fn main() {
         .with_flag(help)
         .with_flag(direction)
         // Finally a handler is defined with its signature being a product of
-        // the cli's helpstring and defined flags.
+        // the cli's helpstring, defined flags and all unparsed arguments.
         .with_helpstring_and_args_handler(
             |help_string, args: scrap::StringArgs, (help_flag_set, optional_direction)| match (
                 help_flag_set,
