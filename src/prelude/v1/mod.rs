@@ -15,6 +15,10 @@ pub use crate::DispatchableWithArgs;
 /// with additional help documentation.
 pub use crate::DispatchableWithHelpString;
 
+/// Defines behaviors for types that can dispatch an evaluator to a function
+/// with both a generated helpstring and all unparsed args.
+pub use crate::DispatchableWithHelpStringAndArgs;
+
 /// Defines behaviors for evaluating an input to a given type.
 pub use crate::Evaluatable;
 

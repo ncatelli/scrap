@@ -829,6 +829,32 @@ impl<T, H> Cmd<T, H> {
             handler,
         }
     }
+
+    /// Returns Cmd with the handler set to the provided function in the format
+    /// of `Fn(helpstring, StringArgs, evaluator return) -> R`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use scrap::prelude::v1::*;
+    /// use scrap::*;
+    ///
+    /// Cmd::new("test").with_helpstring_and_args_handler(|_helpstring, _args, ()| ());
+    /// ```
+    pub fn with_helpstring_and_args_handler<'a, A, B, NH, R>(self, handler: NH) -> Cmd<T, NH>
+    where
+        T: Evaluatable<'a, A, B>,
+        NH: Fn(String, StringArgs, B) -> R,
+    {
+        Cmd {
+            name: self.name,
+            description: self.description,
+            author: self.author,
+            version: self.version,
+            flags: self.flags,
+            handler,
+        }
+    }
 }
 
 impl<T, H> Cmd<T, H>
