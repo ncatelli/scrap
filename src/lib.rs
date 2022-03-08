@@ -315,10 +315,10 @@ where
     }
 }
 
-impl<'a, C, B, R> DispatchableWithHelpString<B, R> for CmdGroup<C>
+impl<'a, A, C, B, R> DispatchableWithHelpString<A, B, R> for CmdGroup<C>
 where
     Self: Helpable<Output = String>,
-    C: DispatchableWithHelpString<B, R>,
+    C: DispatchableWithHelpString<A, B, R>,
 {
     fn dispatch_with_helpstring(self, flag_values: Value<B>) -> R {
         let help_string = self.help();
@@ -463,11 +463,11 @@ where
     }
 }
 
-impl<'a, C1, C2, B, C, R> DispatchableWithHelpString<Either<B, C>, R> for OneOf<C1, C2>
+impl<'a, A, C1, C2, B, C, R> DispatchableWithHelpString<A, Either<B, C>, R> for OneOf<C1, C2>
 where
     Self: Helpable<Output = String>,
-    C1: DispatchableWithHelpString<B, R>,
-    C2: DispatchableWithHelpString<C, R>,
+    C1: DispatchableWithHelpString<A, B, R>,
+    C2: DispatchableWithHelpString<A, C, R>,
 {
     fn dispatch_with_helpstring(self, flag_values: Value<Either<B, C>>) -> R {
         let help_string = self.help();
@@ -865,9 +865,10 @@ where
     }
 }
 
-impl<'a, T, H, B, R> DispatchableWithHelpString<B, R> for Cmd<T, H>
+impl<'a, A, T, H, B, R> DispatchableWithHelpString<A, B, R> for Cmd<T, H>
 where
     Self: Helpable<Output = String>,
+    T: Evaluatable<'a, A, B>,
     H: Fn(String, B) -> R,
 {
     fn dispatch_with_helpstring(self, flag_values: Value<B>) -> R {
@@ -895,9 +896,19 @@ pub trait DispatchableWithArgs<A, B, R> {
 
 /// Defines behaviors for types that can dispatch an evaluator to a function
 /// with additional help documentation.
-pub trait DispatchableWithHelpString<B, R> {
+pub trait DispatchableWithHelpString<A, B, R> {
     fn dispatch_with_helpstring(self, flag_values: Value<B>) -> R;
     fn dispatch_with_supplied_helpstring(self, help_string: String, flag_values: Value<B>) -> R;
+}
+
+pub trait DispatchableWithArgsAndHelpString<A, B, R> {
+    fn dispatch_with_args_and_helpstring(self, args: StringArgs, flag_values: Value<B>) -> R;
+    fn dispatch_with_args_and_supplied_helpstring(
+        self,
+        args: StringArgs,
+        help_string: String,
+        flag_values: Value<B>,
+    ) -> R;
 }
 
 /// Much like Helpable, ShortHelpable is for defining the functionality to
