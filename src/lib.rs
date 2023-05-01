@@ -2851,7 +2851,7 @@ pub struct FileValue {
 impl IsFlag for FileValue {}
 
 impl FileValue {
-    /// Instantiates a new instance of FileArgument
+    /// Instantiates a new instance of FileArgument.
     ///
     /// # Example
     ///
