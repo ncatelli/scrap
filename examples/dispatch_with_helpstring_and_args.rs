@@ -2,7 +2,7 @@ use scrap::prelude::v1::*;
 use std::env;
 
 fn main() {
-    let raw_args: Vec<String> = env::args().into_iter().collect::<Vec<String>>();
+    let raw_args: Vec<String> = env::args().collect::<Vec<String>>();
     let args = raw_args.iter().map(|a| a.as_str()).collect::<Vec<&str>>();
 
     // The `Flag` type defines helpers for generating various common flag
