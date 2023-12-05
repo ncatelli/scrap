@@ -282,7 +282,7 @@ where
 {
     fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, B> {
         let filename = input
-            .get(0)
+            .first()
             .map(|&bin| std::path::Path::new(bin).file_name());
 
         match filename {
@@ -315,7 +315,7 @@ where
     }
 }
 
-impl<'a, A, C, B, R> DispatchableWithHelpString<A, B, R> for CmdGroup<C>
+impl<A, C, B, R> DispatchableWithHelpString<A, B, R> for CmdGroup<C>
 where
     Self: Helpable<Output = String>,
     C: DispatchableWithHelpString<A, B, R>,
@@ -332,7 +332,7 @@ where
     }
 }
 
-impl<'a, A, C, B, R> DispatchableWithHelpStringAndArgs<A, B, R> for CmdGroup<C>
+impl<A, C, B, R> DispatchableWithHelpStringAndArgs<A, B, R> for CmdGroup<C>
 where
     Self: Helpable<Output = String>,
     C: DispatchableWithHelpStringAndArgs<A, B, R>,
@@ -485,7 +485,7 @@ where
     }
 }
 
-impl<'a, A, C1, C2, B, C, R> DispatchableWithHelpString<A, Either<B, C>, R> for OneOf<C1, C2>
+impl<A, C1, C2, B, C, R> DispatchableWithHelpString<A, Either<B, C>, R> for OneOf<C1, C2>
 where
     Self: Helpable<Output = String>,
     C1: DispatchableWithHelpString<A, B, R>,
@@ -525,7 +525,7 @@ where
     }
 }
 
-impl<'a, A, C1, C2, B, C, R> DispatchableWithHelpStringAndArgs<A, Either<B, C>, R> for OneOf<C1, C2>
+impl<A, C1, C2, B, C, R> DispatchableWithHelpStringAndArgs<A, Either<B, C>, R> for OneOf<C1, C2>
 where
     Self: Helpable<Output = String>,
     C1: DispatchableWithHelpStringAndArgs<A, B, R>,
@@ -893,7 +893,7 @@ where
 {
     fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, B> {
         let filename = input
-            .get(0)
+            .first()
             .map(|&bin| std::path::Path::new(bin).file_name());
 
         match filename {
@@ -1774,7 +1774,6 @@ where
     fn evaluate(&self, input: A) -> EvaluateResult<'a, (B, C)> {
         self.evaluator1
             .evaluate(input)
-            .map_err(|e| e)
             .and_then(|e1_res| match self.evaluator2.evaluate(input) {
                 Ok(e2_res) => {
                     let (e1_span, e1_val) = (e1_res.span, e1_res.value);
@@ -2120,7 +2119,7 @@ where
             self.choices
                 .iter()
                 .any(|choice| choice == &op.value)
-                .then(|| op)
+                .then_some(op)
                 .ok_or(CliError::ValueEvaluation)
         })
     }
@@ -2755,7 +2754,7 @@ impl<'a> PositionalArgumentValue<'a, &'a [&'a str], String> for StringValue {
 impl<'a> Evaluatable<'a, &'a [&'a str], String> for StringValue {
     fn evaluate(&self, input: &'a [&'a str]) -> EvaluateResult<'a, String> {
         input
-            .get(0)
+            .first()
             .map(|v| Value::new(Span::from_range(0..1), v.to_string()))
             .ok_or(CliError::ValueEvaluation)
     }
@@ -2886,7 +2885,7 @@ impl<'a> Evaluatable<'a, &'a [&'a str], String> for FileValue {
         use std::fs::OpenOptions;
 
         input
-            .get(0)
+            .first()
             // check if the file exists with the corresponding flags.
             .and_then(|p| {
                 OpenOptions::new()
